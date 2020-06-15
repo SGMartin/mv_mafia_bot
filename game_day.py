@@ -3,10 +3,11 @@ import pandas as pd
 import requests
 
 class  GameDay:
-    def __init__(self, id: int, post: requests.get):
+    def __init__(self, post_id: int, day_number:int, post: requests.get):
 
-        self.id      = id
-        self.players = self.get_player_list(post)
+        self.post_id      = post_id
+        self.day_number   = day_number
+        self.players      = self.get_player_list(post)
 
         # When players are even, majority is players / 2 + 1
         # When players are odd,  majority is players  / 2 rounded up
@@ -31,7 +32,10 @@ class  GameDay:
         self._player_list = []
 
         for self._post in self._all_posts:
-            if int(self._post['data-num']) == self.id: ##We found the post of interest
+
+            ##We found the post of interest
+            if int(self._post['data-num']) == self.post_id: 
+
                 # Get the first list. It should be the player lists according to the templace
                 self._players = self._post.find('ol').find_all('a')
 
