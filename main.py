@@ -1,5 +1,6 @@
 import os.path
 import requests
+import time
 
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -8,6 +9,11 @@ import mafia_bot
 import game_day
 
 def main():
+
+    #For robobrowser:
+    #import werkzeug
+    #werkzeug.cached_property  = werkzeug.utils.cached_property
+    #from robobrowser import RoboBrowser
 
 
     bot_config = {'game_thread': '',
@@ -28,12 +34,15 @@ def main():
         print('Failed to load config.csv')
         raise
     
+    #Set up 10 minute loop.
+    #TODO: Config this.
+    loop_waittime_seconds = 10
     
-   # bot = mafia_bot.MafiaBot(bot_config['game_thread'], bot_config['gm'])
-   # bot.count_votes_from_page(93)
 
-    ## test
-    response = requests.get('https://www.mediavida.com/foro/juegos-mesa-rol/mafia-mv-fortaleza-frontera-654693?u=DarkRaptor&pagina=9')
-    test_day = game_day.GameDay(4338, response)
+    bot = mafia_bot.MafiaBot(bot_config['game_thread'], bot_config['gm'])
+    bot.run(loop_waittime_seconds)
+    
+
+ 
 if __name__ == "__main__":
 	main()

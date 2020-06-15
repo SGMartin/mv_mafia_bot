@@ -1,6 +1,7 @@
 import os.path
 import requests
 import re
+import time
 
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -12,11 +13,11 @@ class MafiaBot:
         print('MV MafiaBot started')
 
         #Initialize vars
+        self.game_title   = 'Unknown'
+        self.game_thread  = game_url
+        self.game_master  = gm
         self.page_count   =  1
-
-        self.game_title  = 'Unknown'
-        self.game_thread = game_url
-        self.game_master = gm
+        self.current_day  =  1
 
         #Load game database
         self.database = self.load_database()
@@ -27,9 +28,8 @@ class MafiaBot:
         if self.current_page == 0:  ## First init.
 
             self._request         = requests.get(self.game_thread)
-            self._first_page_code = BeautifulSoup(self._request.text, 'html.parser')
-            self.game_title       =  self.get_game_title(self._first_page_code)
-            self.page_count       =  self.get_page_count(self._first_page_code)
+            self.game_title       =  self.get_game_title(self._request.text)
+            self.page_count       =  self.get_page_count(self._request.text)
 
         else:
             self.game_title = self.database.loc['title', 'value']
@@ -41,8 +41,7 @@ class MafiaBot:
             self._request_url = f'{self.game_thread}/{self.current_page}'
             self._request     = requests.get(url=self._request_url)
 
-            self._current_page_code = BeautifulSoup(self._request.text, 'html.parser')  
-            self.page_count         = self.get_page_count(self._current_page_code)
+            self.page_count         = self.get_page_count(self._request.text)
 
         # We have to get the current day anyway
         self.current_day = self.get_current_game_day()
@@ -80,9 +79,10 @@ class MafiaBot:
         return self._database
 
 
-    def get_game_title(self, parser):
-         # Get game name
-        self._game_title = parser.find('title').text
+    def get_game_title(self, request_text):
+        # Get game name
+        self._game_title = BeautifulSoup(request_text, 'html.parser')
+        self._game_title = self._game_title.find('title').text
 
         # Remove the trailing '| Mediavida'
         self._game_title = self._game_title.split('|')[0]
@@ -90,17 +90,19 @@ class MafiaBot:
         return self.game_title
 
 
-    def get_page_count(self, parser):
+    def get_page_count(self, request_text):
         #Let's try to parse the page count from the bottom  page panel
         self._page_count = 0
-        try: 
-            self._panel_layout = parser.find('div', id = 'bottompanel')
+        try:
+            self._panel_layout = BeautifulSoup(request_text, 'html.parser') 
+            self._panel_layout = self._panel_layout.find('div', id = 'bottompanel')
             
             # get all <a> elements. Ours is the second last in the list
             self._result = self._panel_layout.find_all('a')[-2].contents[0]
             self._page_count = int(self._result)
         
         #TODO: we should actually check if there is only one page or networking problem.
+       
         except:
             print('Warning... single page thread?')
             self._page_count = 1
@@ -193,6 +195,44 @@ class MafiaBot:
                     return self._current_day
 
 
+    def run(self, seconds):
+
+        self._failed_runs = 0
+
+        while(True):
+                print('Scanning thread...')
+
+                #Send a request to the current page
+                self._page_to_scan = f'{self.game_thread}/{self.current_page}'
+                self._request      = requests.get(self._page_to_scan)
+
+                if self._request.status_code == 200:
+
+                    # Update current page count
+                    self.page_count = self.get_page_count(self._request.text)
+                
+                    if (self.page_count - self.current_page) > 0:
+
+                        for page in range(self.current_page, (self._page_count + 1)):
+
+                            print('Scanning page', page)
+                            self.count_votes_from_page(page)
+                            self.current_page = page
+                            time.sleep(1) #try not to query too many pages at once
+
+
+                    print('Scanning finished. I will sleep for:', seconds, 'seconds')
+
+                
+                else:
+                    self._failed_runs += 1
+                    print('Scan attempt failed. Verify your Internet connection.')
+
+                    if self._failed_runs >= 3:
+                        print('Too many attempts failed. Aborting...')
+                        break
+
+                time.sleep(seconds)
 
 
 
