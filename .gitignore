@@ -1,0 +1,5 @@
+.vscode
+__pycache__
+config.csv
+vote_config.csv
+mafia_654693.csv
