@@ -1,192 +1,63 @@
-import os.path
 import requests
-import re
 import time
-
+import re
 
 from bs4 import BeautifulSoup
-import pandas as pd
 
-import game_day
 
 class MafiaBot:
 
-    def __init__(self, game_url: str, gm: str, loop_waittime_seconds:int):
+    def __init__(self, game_url: str, game_master: str, loop_waittime_seconds:int):
 
-        print('MV MafiaBot started')
+        print('Mafia MV Bot started!')
+        print('Game run by:', game_master)
 
-        #Initialize vars
-        self.game_title           = 'Unknown'
-        self.game_thread          = game_url
-        self.game_master          = gm
-        self.page_count           =  1
-        
-        self.current_game_day          = None
-        self.day_ended                 = False
+        self.game_thread           = game_url
+        self.game_master           = game_master
 
-        # Let's set some limits here
-        if loop_waittime_seconds < 60:
-            self.loop_waittime_seconds = 60
-        else:
-            self.loop_waittime_seconds = loop_waittime_seconds
+        self._current_day_start_post  = 1
 
-        # Get thread id
-        self.thread_id = self.get_thread_id_from_url(self.game_thread)
-
-        #Load game database
-        self.database  = self.load_database(self.thread_id)
-
-        # Fire the bot up
-       # self.run(self.loop_waittime_seconds)
         self.run(10)
-
-    def get_thread_id_from_url(self, url:str) -> str:
-        '''
-        TODO: docs
-        '''
-        self._thread_id           = -1
-        self._name_and_thread_id = url.split('/')[5]
-   
-        try:
-            self._thread_id = int(self._name_and_thread_id.split('-')[-1])
-        except:
-            print('Could not parse thread id... Wrong thread url?')
-            #TODO: Exit bot here
-        
-        return self._thread_id
-
-
-    def load_database(self, thread_id):
-        '''
-        We'll attempt to load this game database. If not found, we'll assume
-        we are being initialized for the first time.
-        '''
-        self.database_path = 'mafia_' + str(thread_id) + '.csv'
-        
-        if os.path.exists(self.database_path):
-
-            self._database = pd.read_csv(filepath_or_buffer=self.database_path, sep=',')
-            self._database.set_index('record', inplace=True)
-            print('Database found for this game!')
-
-        else:
-            print('No data found for this game... starting from scratch')
-            self._database  = pd.DataFrame({'record': ['last_page'], 'value':[1]})
-            self._database.set_index('record', inplace=True)
-
-        return self._database
-
-
-    def run(self, seconds_interval):
-
-        self._failed_runs   = 0
+    
+    def run(self, update_tick:int):
 
         while(True):
 
-            while(not self.day_ended):
+            if self.is_day_phase(): # Daytime, count
+
+                print('Starting vote count...')
+
+                self._start_page = self.get_page_number_from_post(self._current_day_start_post)
+                self._page_count = self.request_page_count()
+
+                print('Detected day start at page:', self._start_page)
+
+                for self._cur_page in range(self._start_page, (self._page_count + 1)):
+
+                    print('Checking page:', self._cur_page)
+                    self.get_votes_from_page(self._cur_page)
+
+                print('Finished counting.')
                 
-                # Launch day phase routine
-                self.check_current_phase()
-
-                # Get last page checked. Will default to 1 if a database was not found
-                self.current_page =  int(self.database.loc['last_page', 'value'])
-
-
-             
-               
-  
-    def start_game_phase(self, post_id:int, day_number:int, day_start_post):
-        
-        print('Day started!')
-
-        self.day_ended = False
-        self.current_game_day = game_day.GameDay(game_day=day_number,
-                                                 post_id=post_id,
-                                                 day_start_post=day_start_post)
-
-       
-
-    def end_game_phase(self, post_id:int):
-
-        print('Ending day:', post_id)
-        self.day_ended = True
-        
-        # Update the database
-        self.database.loc['day', 'value']  = self.current_game_day.day
-        self.current_game_day.end_game_day()
-        
-
-
-    def get_game_title(self, request_text):
-        # Get game name
-        self._game_title = BeautifulSoup(request_text, 'html.parser')
-        self._game_title = self._game_title.find('title').text
-
-        # Remove the trailing '| Mediavida'
-        self._game_title = self._game_title.split('|')[0]
-
-        return self.game_title
-
-
-    def get_page_count(self, request_text):
-        #Let's try to parse the page count from the bottom  page panel
-        self._page_count = 1
-        try:
-            self._panel_layout = BeautifulSoup(request_text, 'html.parser') 
-            self._panel_layout = self._panel_layout.find('div', id = 'bottompanel')
-
-            # get all <a> elements. Ours is the second last in the list
-            self._result = self._panel_layout.find_all('a')[-2].contents[0]
-            self._page_count = int(self._result)
-        
-        #TODO: we should actually check if there is only one page or networking problem.
-        except:
-            print('Warning... single page thread?')
-            self._page_count = 1
-        
-        return self._page_count
-
-
-    def count_votes_from_page(self, request_text):
-        
-        self._parser = BeautifulSoup(request_text, 'html.parser')
-        # MV has unqiue div elements for odd and even posts, 
-        # and another one for the very first post of the page.
-        # I'm ignoring edit div elements because players should not edit while
-        # playing.
-
-        self._posts = self._parser.findAll('div', class_ = ['cf post',
-                                                'cf post z',
-                                                'cf post first'
-                                                ])
-
-        for self._post in self._posts:
-            self._author  = self._post['data-autor']
-            self._post_id = int(self._post['data-num'])
-            self._post_content = self._post.find('div', class_ = 'post-contents')
-            self._post_paragraphs = self._post_content.findAll('p')
-
-            for self._paragraph  in self._post_paragraphs:
-                if len(self._paragraph.findAll('strong')) > 0:
-                   for self._bolded_paragraph in self._paragraph.findAll('strong'):    
-                       ## Ok, possible vote here. Call process_vote for
-                       ## further checks
-                       print('Method call for vote routine here!')
-                       
-     
+            
+            print('Sleeping for', update_tick, 'seconds.')   
+            time.sleep(10)
     
-    def check_current_phase(self) -> int:
+
+
+    def is_day_phase(self) -> bool:
         '''
         Attempt to parse h2 tags in GM posts to get the current  phase.
         It will set some flags for the main loop.
         '''
-        self._current_day = 0
 
-        self._gm_posts  = self.game_thread + '?u=' + self.game_master
-        self._gm_posts  = requests.get(self._gm_posts).text
+        self._is_day_phase     = False
+
+        self._gm_posts         = self.game_thread + '?u=' + self.game_master
+        self._gm_posts         = requests.get(self._gm_posts).text
 
         # Get total gm pages
-        self._gm_pages = self.get_page_count(self._gm_posts)
+        self._gm_pages = self.get_page_count_from_page(self._gm_posts)
 
         # We'll start looping from the last page to the previous one
         for self._pagenum in range(self._gm_pages, 0, -1):
@@ -209,15 +80,92 @@ class MafiaBot:
                     self._phase_start   = re.findall('^Día [0-9]*', self._pday.text)
 
                     if self._phase_end:
-                        self.end_game_phase(int(self._post['data-num']))
+                        return self._is_day_phase
                       
-                    elif self._phase_start: 
-                        self._current_day = int(self._phase_start[0].split('Día ')[-1])
-                        
-                        # Start new Game day
-                        self.start_game_phase(post_id=int(self._post['data-num']),
-                                              day_number=self._current_day,
-                                              day_start_post=self._request)
-                        
+                    elif self._phase_start:
 
-                        return
+                        self._current_day_start_post = int(self._post['data-num'])
+                        self._is_day_phase = True
+
+        return self._is_day_phase
+
+
+    def get_votes_from_page(self, page_to_scan:int):
+
+        self._parsed_url = f'{self.game_thread}/{page_to_scan}'
+        self._request    = requests.get(self._parsed_url).text
+        
+        self._parser = BeautifulSoup(self._request, 'html.parser')
+
+        # MV has unqiue div elements for odd and even posts, 
+        # and another one for the very first post of the page.
+        # I'm ignoring edit div elements because players should not edit while
+        # playing.
+
+        self._posts = self._parser.findAll('div', class_ = ['cf post',
+                                                'cf post z',
+                                                'cf post first'
+                                                ])
+
+        for self._post in self._posts:
+            self._author  = self._post['data-autor']
+            self._post_id = int(self._post['data-num'])
+            self._post_content = self._post.find('div', class_ = 'post-contents')
+            self._post_paragraphs = self._post_content.findAll('p')
+            self._victim = ''
+
+            for self._paragraph  in self._post_paragraphs:
+
+                if len(self._paragraph.findAll('strong')) > 0:
+                    
+                    for self._bolded_paragraph in self._paragraph.findAll('strong'):
+
+                        if 'desvoto' in self._bolded_paragraph.text.lower():
+                            self._victim = 'desvoto'
+                        
+                        elif 'no linchamiento' in self._bolded_paragraph.text.lower():
+                            self._victim = 'no_lynch' 
+                        
+                        elif 'voto' in self._bolded_paragraph.text.lower():
+                            self._victim = self._bolded_paragraph.text.split(' ')[-1]
+                    
+            if self._victim != '': # Call votecount routine here
+                print(self._author, 'voted:', self._victim)
+
+
+
+    def request_page_count(self):
+        '''
+        Gets page count by performing a standalone request to the game
+        thread. Then, get_page_count_from page is called to retrieve
+        the page count.
+        '''
+
+        self._request = requests.get(self.game_thread).text
+        self._page_count = self.get_page_count_from_page(self._request)
+
+        return self._page_count
+
+
+    def get_page_count_from_page(self, request_text):
+        #Let's try to parse the page count from the bottom  page panel
+        self._page_count = 1
+        try:
+            self._panel_layout = BeautifulSoup(request_text, 'html.parser') 
+            self._panel_layout = self._panel_layout.find('div', id = 'bottompanel')
+
+            # get all <a> elements. Ours is the second last in the list
+            self._result = self._panel_layout.find_all('a')[-2].contents[0]
+            self._page_count = int(self._result)
+        
+        except:
+            print('Warning: cannot get total page count. Single page thread?')
+            self._page_count = 1
+        
+        return self._page_count
+
+
+    def get_page_number_from_post(self, post_id:int):
+
+        self._page_number = int(round(post_id / 30))
+        return self._page_number
