@@ -15,7 +15,9 @@ class MafiaBot:
         self.game_thread           = game_url
         self.game_master           = game_master
 
-        self._current_day_start_post  = 1
+        self.current_day_start_post  = 1
+        self.last_votecount_id       = 1
+
         self.player_list              = []
 
         # Load vote rights table
@@ -36,8 +38,9 @@ class MafiaBot:
             if self.is_day_phase(): # Daytime, count
 
                 print('Starting vote count...')
+                print('Last vote count was:', self.last_votecount_id)
 
-                self._start_page = self.get_page_number_from_post(self._current_day_start_post)
+                self._start_page = self.get_page_number_from_post(self.current_day_start_post)
                 self._page_count = self.request_page_count()
 
                 print('Detected day start at page:', self._start_page)
@@ -49,18 +52,25 @@ class MafiaBot:
 
                 print('Finished counting.')
                 
+                # Decide if we have to push a vote count or not
+                self._last_count_page = self.get_page_number_from_post(self.last_votecount_id)
+
+                if self._last_count_page < self._page_count:
+                    print('We should push a new count', self._last_count_page, self._page_count)
+                else:
+                    print('Wait a little more')
+
             
             print('Sleeping for', update_tick, 'seconds.')   
             time.sleep(10)
     
 
-
+    #TODO: This method can and should be refactored
     def is_day_phase(self) -> bool:
         '''
         Attempt to parse h2 tags in GM posts to get the current  phase.
         It will set some flags for the main loop.
         '''
-
         self._is_day_phase     = False
 
         self._gm_posts         = self.game_thread + '?u=' + self.game_master
@@ -85,9 +95,14 @@ class MafiaBot:
                 self._headers = self._post.find_all('h2') #get all GM h2 headers
 
                 for self._pday in self._headers:
-
+                    
+                    self._last_count_id = re.findall('^Recuento de votos', self._pday.text)
                     self._phase_end     = re.findall('^Final del día [0-9]*', self._pday.text)
                     self._phase_start   = re.findall('^Día [0-9]*', self._pday.text)
+
+                    if self._last_count_id:
+                        if self.last_votecount_id <= int(self._post['data-num']):
+                            self.last_votecount_id = int(self._post['data-num'])
 
                     if self._phase_end:
                         return self._is_day_phase
@@ -95,11 +110,12 @@ class MafiaBot:
                     elif self._phase_start: 
 
                         #TODO: We should start thinking about an standalone method here
-                        self._current_day_start_post = int(self._post['data-num'])
+                        self.current_day_start_post = int(self._post['data-num'])
                         self._is_day_phase = True
-                        self.player_list = self.get_player_list(self._current_day_start_post)
+                        self.player_list = self.get_player_list(self.current_day_start_post)
 
         return self._is_day_phase
+
 
 
     def get_votes_from_page(self, page_to_scan:int):
@@ -160,6 +176,7 @@ class MafiaBot:
 
 
     def get_page_count_from_page(self, request_text):
+
         #Let's try to parse the page count from the bottom  page panel
         self._page_count = 1
         try:
@@ -179,8 +196,12 @@ class MafiaBot:
 
     def get_page_number_from_post(self, post_id:int):
 
-        self._page_number = int(round(post_id / 30))
-        return self._page_number
+        if (post_id / 30 ) % 1 == 0:
+            self._page_number = int(post_id / 30)
+        else:
+            self._page_number = int(round((post_id  / 30) + 0.5))
+            
+        return self._page_number 
 
 
     def get_player_list(self, start_day_post_id:int) -> list():
@@ -243,7 +264,9 @@ class MafiaBot:
                                 self._is_valid_vote = True
                     else:
                         print('Warning: player', victim, 'is not on the vote rights table.')
-    
+        else:
+            print('No more votes because majority was reached!')
+        
         return self._is_valid_vote
 
     
@@ -282,7 +305,8 @@ class MafiaBot:
 
                 #Check if we have reached majority
                 if self.is_lynched(self._victim):
-                    self.majority_reached = True    
+                    self.majority_reached = True   
+
         else:
             print('Invalid vote by', player, 'at', post_id, 'They voted', self._victim)
 
@@ -291,7 +315,7 @@ class MafiaBot:
 
         # When players are even, majority is players / 2 + 1
         # When players are odd,  majority is players  / 2 rounded up  
-        
+
         if (len(self.player_list) % 2) == 0:
             self._majority = int(len(self.player_list) / 2) + 1
         else:
