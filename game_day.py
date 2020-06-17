@@ -3,12 +3,11 @@ import pandas as pd
 import requests
 
 class  GameDay:
-    def __init__(self, post_id: int, day_number:int, day_start_post: requests.get):
+    def __init__(self, game_day:int, post_id: int, day_start_post):
 
         self.post_id            = post_id
-        self.day_number         = day_number
         self.majority_reached   = False
-
+        self.day                = game_day
 
         # Load vote rights table
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
@@ -18,21 +17,24 @@ class  GameDay:
 
         # When players are even, majority is players / 2 + 1
         # When players are odd,  majority is players  / 2 rounded up  
+        
         if (len(self.alive_players) % 2) == 0:
             self.majority = int(len(self.alive_players) / 2) + 1
         else:
             self.majority = int(round(len(self.alive_players)/2, 0))
         
         # Create vote count table
-        self.vote_table = pd.DataFrame(columns=['player', 'voted_by', 'post_id'])    
+        self.vote_table = pd.DataFrame(columns=['player', 'voted_by', 'post_id'])
 
-    def get_player_list(self, parser) -> list():
+        print('Alive players:', self.alive_players)    
+
+    def get_player_list(self, post_text) -> list():
         '''
         Parses opening day post to get a list of active players. We are sent
         an http get request with the day post. This way, we can recycle a previous
         request.
         '''
-        self._response = BeautifulSoup(parser.text, 'html.parser')
+        self._response = BeautifulSoup(post_text, 'html.parser')
         self._all_posts = self._response.find_all('div', attrs={'data-num':True,
                                                                 'data-autor':True})
         
@@ -127,6 +129,13 @@ class  GameDay:
         else:
             print('Invalid vote by', player, 'at', post_id, 'They voted', victim)
     
+    #TODO: track vote history and save it here.
+    def end_game_day(self):
+        '''
+        If the day has ended, we should save the current vote count to a file.
+        '''
+        self._file_name = f'day_{self.day}_last_count.csv'
+        self.vote_table.to_csv(self._file_name, sep=',', index=False)
 
 
            
