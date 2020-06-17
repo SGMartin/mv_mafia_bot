@@ -1,20 +1,11 @@
 import os.path
-import requests
-import time
-
-from bs4 import BeautifulSoup
 import pandas as pd
 
 import mafia_bot
 import game_day
+import user
 
 def main():
-
-    #For robobrowser:
-    #import werkzeug
-    #werkzeug.cached_property  = werkzeug.utils.cached_property
-    #from robobrowser import RoboBrowser
-
 
     bot_config = {'game_thread': '',
                   'gm': '',
@@ -34,14 +25,15 @@ def main():
         print('Failed to load config.csv')
         raise
     
+    
+ 
+
     #Set up 10 minute loop.
     #TODO: Config this.
-    loop_waittime_seconds = 10
+    #loop_waittime_seconds = 10
     
-
-    bot = mafia_bot.MafiaBot(bot_config['game_thread'], bot_config['gm'])
-    bot.run(loop_waittime_seconds)
-    
+    print('GM is', bot_config['gm'])
+    bot = mafia_bot.MafiaBot(bot_config['game_thread'], bot_config['gm'], 30)
 
  
 if __name__ == "__main__":
