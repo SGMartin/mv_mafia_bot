@@ -2,7 +2,6 @@ import os.path
 import pandas as pd
 
 import mafia_bot
-import game_day
 import user
 
 def main():
@@ -25,15 +24,8 @@ def main():
         print('Failed to load config.csv')
         raise
     
-    
- 
-
-    #Set up 10 minute loop.
-    #TODO: Config this.
-    #loop_waittime_seconds = 10
-    
-    print('GM is', bot_config['gm'])
-    bot = mafia_bot.MafiaBot(bot_config['game_thread'], bot_config['gm'], 30)
+    bot = mafia_bot.MafiaBot(bot_config['game_thread'], bot_config['gm'],
+                             bot_config['mv_id'], bot_config['mv_password'],  300)
 
  
 if __name__ == "__main__":

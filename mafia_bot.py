@@ -5,15 +5,19 @@ import re
 from bs4 import BeautifulSoup
 import pandas as pd
 
+import user
+
 class MafiaBot:
 
-    def __init__(self, game_url: str, game_master: str, loop_waittime_seconds:int):
+    def __init__(self, game_url: str, game_master: str,
+                 bot_userID:str, bot_password:str, loop_waittime_seconds:int):
 
-        print('Mafia MV Bot started!')
-        print('Game run by:', game_master)
 
         self.game_thread           = game_url
+        self.thread_id             = int(game_url.split('-')[-1])
         self.game_master           = game_master
+        self.bot_ID                = bot_userID
+        self.bot_password          = bot_password
 
         self.current_day_start_post  = 1
         self.last_votecount_id       = 1
@@ -29,6 +33,11 @@ class MafiaBot:
 
         self.majority_reached         = False
 
+        print('Mafia MV Bot started!')
+        print('Game run by:', game_master)
+        print('Bot ID is', self.bot_ID)
+
+
         self.run(loop_waittime_seconds)
     
     def run(self, update_tick:int):
@@ -37,32 +46,42 @@ class MafiaBot:
 
             if self.is_day_phase(): # Daytime, count
 
-                print('Starting vote count...')
-                print('Last vote count was:', self.last_votecount_id)
+                self.last_votecount_id = self.get_last_votecount()
+                self.last_thread_post  = self.get_last_post()
 
-                self._start_page = self.get_page_number_from_post(self.current_day_start_post)
-                self._page_count = self.request_page_count()
+                print(f'Last vote count: {self.last_votecount_id}. Last reply: {self.last_thread_post}')
 
-                print('Detected day start at page:', self._start_page)
+                if self.last_thread_post - self.last_votecount_id > 10: #TODO: configure this
 
-                for self._cur_page in range(self._start_page, (self._page_count + 1)):
+                    print('Starting vote count...')
+                 
+                    self._start_page = self.get_page_number_from_post(self.current_day_start_post)
+                    self._page_count = self.request_page_count()
 
-                    print('Checking page:', self._cur_page)
-                    self.get_votes_from_page(self._cur_page)
+                    print('Detected day start at page:', self._start_page)
+                    print('Detected', self._page_count, 'pages')
 
-                print('Finished counting.')
-                
-                # Decide if we have to push a vote count or not
-                self._last_count_page = self.get_page_number_from_post(self.last_votecount_id)
+                    for self._cur_page in range(self._start_page, (self._page_count + 1)):
 
-                if self._last_count_page < self._page_count:
-                    print('We should push a new count', self._last_count_page, self._page_count)
+                        print('Checking page:', self._cur_page)
+                        self.get_votes_from_page(self._cur_page)
+
+                    print('Finished counting.')
+                    print('Pushing a new votecount')
+                    
+                    self.user = user.User(self.thread_id, self.game_thread,
+                                          self.bot_ID, self.bot_password,
+                                          self.vote_table, len(self.player_list),
+                                          self.get_vote_majority())
+                    
                 else:
-                    print('Wait a little more')
-
+                    print('Recent votecount detected. ')
+                
+            else:
+                print('Night phase detected. Skipping...')
             
             print('Sleeping for', update_tick, 'seconds.')   
-            time.sleep(10)
+            time.sleep(update_tick)
     
 
     #TODO: This method can and should be refactored
@@ -96,13 +115,8 @@ class MafiaBot:
 
                 for self._pday in self._headers:
                     
-                    self._last_count_id = re.findall('^Recuento de votos', self._pday.text)
                     self._phase_end     = re.findall('^Final del día [0-9]*', self._pday.text)
                     self._phase_start   = re.findall('^Día [0-9]*', self._pday.text)
-
-                    if self._last_count_id:
-                        if self.last_votecount_id <= int(self._post['data-num']):
-                            self.last_votecount_id = int(self._post['data-num'])
 
                     if self._phase_end:
                         return self._is_day_phase
@@ -116,6 +130,63 @@ class MafiaBot:
 
         return self._is_day_phase
 
+    def get_last_votecount(self) -> int:
+        '''
+        Get the bot last votecount. Do not take into account the GM's manual
+        votecounts. It does not matter.
+        '''
+        self._bot_posts         = self.game_thread + '?u=' + self.bot_ID
+        self._bot_posts         = requests.get(self._bot_posts).text
+
+        self._last_votecount_id = 1 
+        
+        # Get total gm pages
+        self._bot_pages = self.get_page_count_from_page(self._bot_posts)
+
+         # We'll start looping from the last page to the previous one
+        for self._pagenum in range(self._bot_pages, 0, -1):
+
+            self._request      = f'{self.game_thread}?u={self.bot_ID}&pagina={self._pagenum}'
+            self._request      = requests.get(self._request).text
+            self._current_page = BeautifulSoup(self._request, 'html.parser')
+
+            #TODO: log these iterations?
+            self._posts        = self._current_page.find_all('div', attrs={'data-num':True,
+                                                                          'data-autor':True})
+          
+            for self._post in reversed(self._posts): #from more recent to older posts
+
+                self._headers = self._post.find_all('h2') #get all GM h2 headers
+
+                for self._pcount in self._headers:
+                    
+                    self._last_count_id = re.findall('^Recuento de votos', self._pcount.text)
+   
+                    if self._last_count_id:
+
+                        self._last_votecount_id = int(self._post['data-num'])
+                        return self._last_votecount_id
+    
+        
+        return self._last_votecount_id
+
+    
+    def get_last_post(self) -> int:
+        '''
+        Get the last post id of the thread.
+        '''
+        self._last_post_id = 1
+
+        self._last_page = self.request_page_count()
+        self._request   = f'{self.game_thread}/{self._last_page}'
+        self._request   =  requests.get(self._request).text
+
+        self._page      = BeautifulSoup(self._request, 'html.parser')
+
+        self._all_posts = self._page.find_all('div', attrs={'data-num':True,
+                                                            'data-autor':True})
+
+        return int(self._all_posts[-1]['data-num'])
 
 
     def get_votes_from_page(self, page_to_scan:int):
@@ -183,12 +254,9 @@ class MafiaBot:
             self._panel_layout = BeautifulSoup(request_text, 'html.parser') 
             self._panel_layout = self._panel_layout.find('div', id = 'bottompanel')
 
-            # get all <a> elements. Ours is the second last in the list
             self._result = self._panel_layout.find_all('a')[-2].contents[0]
             self._page_count = int(self._result)
-        
         except:
-            print('Warning: cannot get total page count. Single page thread?')
             self._page_count = 1
         
         return self._page_count
@@ -200,7 +268,7 @@ class MafiaBot:
             self._page_number = int(post_id / 30)
         else:
             self._page_number = int(round((post_id  / 30) + 0.5))
-            
+
         return self._page_number 
 
 
