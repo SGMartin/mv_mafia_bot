@@ -1,2 +1,2 @@
-player,can_be_voted,allowed_votes,mod_to_lynch
-Xeiss,1,1,0
+player,can_be_voted,allowed_votes,mod_to_lynch,hidden_mod
+Uni0n,1,1,0,0
