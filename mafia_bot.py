@@ -28,9 +28,6 @@ class MafiaBot:
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
         self.vote_rights.set_index('player', inplace=True)
 
-        # Initialize empty vote table
-        self.vote_table = pd.DataFrame(columns=['player', 'voted_by', 'post_id'])
-
         self.majority_reached         = False
 
         print('Mafia MV Bot started!')
@@ -44,35 +41,44 @@ class MafiaBot:
 
         while(True):
 
-            if self.is_day_phase(): # Daytime, count
+            # Initialize empty vote table
+            self.vote_table = pd.DataFrame(columns=['player', 'voted_by', 'post_id'])
+
+            if self.is_day_phase() and not self.majority_reached : # Daytime, count
 
                 self.last_votecount_id = self.get_last_votecount()
                 self.last_thread_post  = self.get_last_post()
 
                 print(f'Last vote count: {self.last_votecount_id}. Last reply: {self.last_thread_post}')
 
-                if self.last_thread_post - self.last_votecount_id > 10: #TODO: configure this
 
-                    print('Starting vote count...')
+                print('Starting vote count...')
                  
-                    self._start_page = self.get_page_number_from_post(self.current_day_start_post)
-                    self._page_count = self.request_page_count()
+                self._start_page = self.get_page_number_from_post(self.current_day_start_post)
+                self._page_count = self.request_page_count()
 
-                    print('Detected day start at page:', self._start_page)
-                    print('Detected', self._page_count, 'pages')
+                print('Detected day start at page:', self._start_page)
+                print('Detected', self._page_count, 'pages')
 
-                    for self._cur_page in range(self._start_page, (self._page_count + 1)):
+                for self._cur_page in range(self._start_page, (self._page_count + 1)):
 
-                        print('Checking page:', self._cur_page)
-                        self.get_votes_from_page(self._cur_page)
+                    print('Checking page:', self._cur_page)
+                    self.get_votes_from_page(page_to_scan=self._cur_page)
 
-                    print('Finished counting.')
+
+                print('Finished counting.')
+                if self.last_thread_post - self.last_votecount_id >= 10: #TODO: configure this
                     print('Pushing a new votecount')
                     
-                    self.user = user.User(self.thread_id, self.game_thread,
-                                          self.bot_ID, self.bot_password,
-                                          self.vote_table, len(self.player_list),
-                                          self.get_vote_majority())
+                    self.User = user.User(thread_id= self.thread_id,
+                                          thread_url=self.game_thread,
+                                          bot_id=self.bot_ID,
+                                          bot_password=self.bot_password,
+                                          game_master=self.game_master)
+                    
+                    self.User.push_votecount(vote_count=self.vote_table,
+                                             alive_players=len(self.player_list),
+                                             vote_majority=self.get_vote_majority())
                     
                 else:
                     print('Recent votecount detected. ')
@@ -122,8 +128,11 @@ class MafiaBot:
                         return self._is_day_phase
                       
                     elif self._phase_start: 
-
                         #TODO: We should start thinking about an standalone method here
+
+                        if self.current_day_start_post < int(self._post['data-num']):
+                            self.majority_reached = False
+
                         self.current_day_start_post = int(self._post['data-num'])
                         self._is_day_phase = True
                         self.player_list = self.get_player_list(self.current_day_start_post)
@@ -213,24 +222,24 @@ class MafiaBot:
             self._post_paragraphs = self._post_content.findAll('p')
             self._victim = ''
 
-            for self._paragraph  in self._post_paragraphs:
+            if self._post_id > self.current_day_start_post: #Prevent the bot from counting posts from the past day
+                for self._paragraph  in self._post_paragraphs:
 
-                if len(self._paragraph.findAll('strong')) > 0:
+                    if len(self._paragraph.findAll('strong')) > 0:
                     
-                    for self._bolded_paragraph in self._paragraph.findAll('strong'):
+                        for self._bolded_paragraph in self._paragraph.findAll('strong'):
 
-                        if 'desvoto' in self._bolded_paragraph.text.lower():
-                            self._victim = 'desvoto'
+                            if 'desvoto' in self._bolded_paragraph.text.lower():
+                                self._victim = 'desvoto'
                         
-                        elif 'no linchamiento' in self._bolded_paragraph.text.lower():
-                            self._victim = 'no_lynch' 
+                            elif 'no linchamiento' in self._bolded_paragraph.text.lower():
+                                self._victim = 'no_lynch' 
                         
-                        elif 'voto' in self._bolded_paragraph.text.lower():
-                            self._victim = self._bolded_paragraph.text.split(' ')[-1]
+                            elif 'voto' in self._bolded_paragraph.text.lower():
+                                self._victim = self._bolded_paragraph.text.split(' ')[-1]
                     
-                        if self._victim != '': # Call votecount routine here
-                            self.vote_player(self._author, self._victim, self._post_id)
-
+                            if self._victim != '': # Call votecount routine here
+                                self.vote_player(self._author, self._victim, self._post_id)
 
 
     def request_page_count(self):
@@ -313,6 +322,8 @@ class MafiaBot:
 
                 if player == self.game_master:
                     self._player_max_votes = 999
+                    player                 = 'GM'
+
                 else:
                     self._player_max_votes = self.vote_rights.loc[player, 'allowed_votes']
 
@@ -358,12 +369,16 @@ class MafiaBot:
 
         if self.is_valid_vote(player, victim):
 
+            if player == self.game_master:
+                player = 'GM'
+
             if victim == 'desvoto':
                 self._old_vote = self.vote_table[self.vote_table['voted_by'] == player].index[0]
                 self.vote_table.drop(self._old_vote, axis=0, inplace=True)
                 print(player, 'unvoted.')
             
             else:
+
                 self.vote_table  = self.vote_table.append({'player': victim,
                                                            'voted_by': player,
                                                            'post_id': post_id},
@@ -373,20 +388,26 @@ class MafiaBot:
 
                 #Check if we have reached majority
                 if self.is_lynched(self._victim):
-                    self.majority_reached = True   
+                    self.lynch_player(self._victim)   
 
         else:
             print('Invalid vote by', player, 'at', post_id, 'They voted', self._victim)
 
 
+    def lynch_player(self, victim:str):
+
+        self.majority_reached = True
+
+        self._user = user.User(thread_id=self.thread_id, 
+                               thread_url= self.game_thread,
+                               bot_id= self.bot_ID,
+                               bot_password=self.bot_password,
+                               game_master= self.game_master)
+        
+        self._user.push_lynch(last_votecount=self.vote_table,  victim=victim)
+
+
     def get_vote_majority(self) -> int:
 
-        # When players are even, majority is players / 2 + 1
-        # When players are odd,  majority is players  / 2 rounded up  
-
-        if (len(self.player_list) % 2) == 0:
-            self._majority = int(len(self.player_list) / 2) + 1
-        else:
-            self._majority = int(round(len(self.player_list)/2, 0))
-
+        self._majority = int(round(len(self.player_list)/2, 0)) + 1
         return self._majority

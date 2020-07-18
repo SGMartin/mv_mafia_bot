@@ -25,7 +25,7 @@ def main():
         raise
     
     bot = mafia_bot.MafiaBot(bot_config['game_thread'], bot_config['gm'],
-                             bot_config['mv_id'], bot_config['mv_password'],  300)
+                             bot_config['mv_id'], bot_config['mv_password'],  60)
 
  
 if __name__ == "__main__":
