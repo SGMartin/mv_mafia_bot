@@ -82,7 +82,6 @@ class User:
     def generate_string_from_vote_count(self, vote_count: pd.DataFrame):
 
         self._vote_count = vote_count['player'].value_counts().sort_values(ascending=False)
-
         self._vote_rank = ''
 
         for i in range(0, len(self._vote_count)):
@@ -93,6 +92,9 @@ class User:
             self._voters  = vote_count.loc[vote_count['player'] == self._player, 'voted_by'].tolist()
             self._voters  = ', '.join(self._voters)
 
+            if self._player == 'no_lynch':
+                self._player = 'No linchamiento'
+
             self._vote_string  =  f'1. [url={self.thread_url}?u={self._player}]**{self._player}**[/url]: {self._votes} ( _{self._voters}_ ) \n'  
             self._vote_rank    = self._vote_rank + self._vote_string
 
@@ -101,7 +103,10 @@ class User:
 
     def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str):
 
-        self._header   = f'### ¡Se ha alcanzado mayoría absoluta. {victim} será linchado en breves! ### \n \n'
+        if victim  == 'no_lynch':
+            self._header = f'### ¡Se ha alcanzado mayoría absoluta. Nadie será linchado! ### \n \n'
+        else:
+            self._header   = f'### ¡Se ha alcanzado mayoría absoluta. {victim} será linchado en breves! ### \n \n'
 
         self._final_votecount = self.generate_string_from_vote_count(vote_count=last_votecount)
 
