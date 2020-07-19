@@ -1,5 +1,6 @@
 key,value
-game_thread,add_mv_thread
-GM,mv_gm_name
-mediavida_user,mv_user_name
-mediavida_password,mv_user_password
+game_thread,thread
+GM,gm
+mediavida_user,Jiub
+mediavida_password,¿?
+update_time_seconds,60

@@ -18,14 +18,19 @@ def main():
         bot_config['gm']          = config.loc['GM', 'value']
         bot_config['mv_id']       = config.loc['mediavida_user', 'value']
         bot_config['mv_password'] = config.loc['mediavida_password', 'value']
+        bot_config['update_time_seconds'] = config.loc['update_time_seconds', 'value']
+
         print('Configuration... LOADED')
     
     except:
         print('Failed to load config.csv')
         raise
     
-    bot = mafia_bot.MafiaBot(bot_config['game_thread'], bot_config['gm'],
-                             bot_config['mv_id'], bot_config['mv_password'],  60)
+    MafiaBot = mafia_bot.MafiaBot(game_url=bot_config['game_thread'],
+                                 game_master=bot_config['gm'],
+                                 bot_userID=bot_config['mv_id'],
+                                 bot_password=['mv_password'],
+                                 loop_waittime_seconds=bot_config['update_time_seconds'])
 
  
 if __name__ == "__main__":
