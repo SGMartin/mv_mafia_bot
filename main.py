@@ -29,7 +29,7 @@ def main():
     MafiaBot = mafia_bot.MafiaBot(game_url=bot_config['game_thread'],
                                  game_master=bot_config['gm'],
                                  bot_userID=bot_config['mv_id'],
-                                 bot_password=['mv_password'],
+                                 bot_password=bot_config['mv_password'],
                                  loop_waittime_seconds=bot_config['update_time_seconds'])
 
  
