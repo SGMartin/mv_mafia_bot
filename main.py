@@ -30,7 +30,7 @@ def main():
                                  game_master=bot_config['gm'],
                                  bot_userID=bot_config['mv_id'],
                                  bot_password=bot_config['mv_password'],
-                                 loop_waittime_seconds=bot_config['update_time_seconds'])
+                                 loop_waittime_seconds=int(bot_config['update_time_seconds']))
 
  
 if __name__ == "__main__":
