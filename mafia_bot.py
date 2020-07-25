@@ -67,7 +67,7 @@ class MafiaBot:
 
 
                 print('Finished counting.')
-                if self.last_thread_post - self.last_votecount_id >= 10: #TODO: configure this
+                if self.last_thread_post - self.last_votecount_id >= 100: #TODO: configure this
                     print('Pushing a new votecount')
                     
                     self.User = user.User(thread_id= self.thread_id,
@@ -219,27 +219,23 @@ class MafiaBot:
             self._author  = self._post['data-autor']
             self._post_id = int(self._post['data-num'])
             self._post_content = self._post.find('div', class_ = 'post-contents')
-            self._post_paragraphs = self._post_content.findAll('p')
+            self._post_commands = self._post_content.findAll('h5')
             self._victim = ''
 
-            if self._post_id > self.current_day_start_post: #Prevent the bot from counting posts from the past day
-                for self._paragraph  in self._post_paragraphs:
+            if self._post_id > self.current_day_start_post: # Prevent the bot from counting posts from the past day
+                for self._command in self._post_commands:
 
-                    if len(self._paragraph.findAll('strong')) > 0:
-                    
-                        for self._bolded_paragraph in self._paragraph.findAll('strong'):
-
-                            if 'desvoto' in self._bolded_paragraph.text.lower():
-                                self._victim = 'desvoto'
+                    if 'desvoto' in self._command.text.lower():
+                        self._victim = 'desvoto'
                         
-                            elif 'no linchamiento' in self._bolded_paragraph.text.lower():
-                                self._victim = 'no_lynch' 
+                    elif 'no linchamiento' in self._command.text.lower():
+                        self._victim = 'no_lynch' 
                         
-                            elif 'voto' in self._bolded_paragraph.text.lower():
-                                self._victim = self._bolded_paragraph.text.split(' ')[-1]
+                    elif 'voto' in self._command.text.lower():
+                        self._victim = self._command.text.split(' ')[-1]
                     
-                            if self._victim != '': # Call votecount routine here
-                                self.vote_player(self._author, self._victim, self._post_id)
+                    if self._victim != '': # Call votecount routine here
+                        self.vote_player(self._author, self._victim, self._post_id)
 
 
     def request_page_count(self):
