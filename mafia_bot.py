@@ -225,17 +225,21 @@ class MafiaBot:
             if self._post_id > self.current_day_start_post: # Prevent the bot from counting posts from the past day
                 for self._command in self._post_commands:
 
-                    if 'desvoto' in self._command.text.lower():
+                    self._command = self._command.text.lower()
+
+                    if 'desvoto' in self._command:
                         self._victim = 'desvoto'
                         
-                    elif 'no linchamiento' in self._command.text.lower():
+                    elif 'no linchamiento' in self._command:
                         self._victim = 'no_lynch' 
                         
-                    elif 'voto' in self._command.text.lower():
-                        self._victim = self._command.text.split(' ')[-1]
+                    elif 'voto' in self._command:
+                        self._victim = self._command.split(' ')[-1]
                     
                     if self._victim != '': # Call votecount routine here
-                        self.vote_player(self._author, self._victim, self._post_id)
+                        self.vote_player(player=self._author,
+                                         victim=self._victim,
+                                         post_id=self._post_id)
 
 
     def request_page_count(self):
@@ -303,7 +307,7 @@ class MafiaBot:
                 self._players = self._post.find('ol').find_all('a')
 
                 for self._player in self._players:
-                    self._player_list.append(self._player.contents[0])
+                    self._player_list.append(self._player.contents[0].lower())
 
                 return self._player_list
 
