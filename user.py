@@ -95,7 +95,7 @@ class User:
             if self._player == 'no_lynch':
                 self._player = 'No linchamiento'
 
-            self._vote_string  =  f'1. [url={self.thread_url}?u={self._player}]**{self._player}**[/url]: {self._votes} ( _{self._voters}_ ) \n'  
+            self._vote_string  =  f'1. [url={self.thread_url}?u={self._player}]**{self._player}**[/url]: {self._votes} (_{self._voters}_) \n'  
             self._vote_rank    = self._vote_rank + self._vote_string
 
         return self._vote_rank
@@ -106,7 +106,7 @@ class User:
         if victim  == 'no_lynch':
             self._header = f'### ¡Se ha alcanzado mayoría absoluta. Nadie será linchado! ### \n \n'
         else:
-            self._header   = f'### ¡Se ha alcanzado mayoría absoluta, {victim} será linchad@ en breves! ### \n \n'
+            self._header   = f'### ¡Se ha alcanzado mayoría absoluta, se linchará a {victim}! ### \n \n'
 
         self._final_votecount = self.generate_string_from_vote_count(vote_count=last_votecount)
 
