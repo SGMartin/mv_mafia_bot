@@ -28,9 +28,15 @@ class MafiaBot:
 
         # Load vote rights table
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
-        self.vote_rights.set_index('player', inplace=True)
 
-        self.vote_requests = pd.DataFrame({'player' : self.vote_rights.index,
+        ## use lowercase player names as keys, player column as true names
+        self.vote_rights.index = self.vote_rights['player'].str.lower()
+
+        ## We'll use this table as the master table for real names
+        self.real_names = self.vote_rights['player'].to_dict()
+        self.real_names[self.game_master.lower()] = 'GM'
+
+        self.vote_requests = pd.DataFrame({'player' : self.vote_rights['player'],
                                           'max_vote_requests': self.vote_rights['allowed_vote_requests'],
                                           'vote_requested':0})
 
@@ -88,21 +94,6 @@ class MafiaBot:
             time.sleep(update_tick)
     
 
-    def push_vote_count(self):
-        '''
-        Creates an User object and pushes a votecount
-        '''
-        self.User = user.User(thread_id= self.thread_id,
-                              thread_url=self.game_thread,
-                              bot_id=self.bot_ID,
-                              bot_password=self.bot_password,
-                              game_master=self.game_master)
-                    
-        self.User.push_votecount(vote_count=self.vote_table,
-                                 alive_players=len(self.player_list),
-                                 vote_majority=self.get_vote_majority())
-
-        del self.User
 
     #TODO: This method can and should be refactored
     def is_day_phase(self) -> bool:
@@ -110,6 +101,7 @@ class MafiaBot:
         Attempt to parse h2 tags in GM posts to get the current  phase.
         It will set some flags for the main loop.
         '''
+   
         self._is_day_phase     = False
 
         self._gm_posts         = self.game_thread + '?u=' + self.game_master
@@ -139,7 +131,7 @@ class MafiaBot:
                     self._phase_start   = re.findall('^Día [0-9]*', self._pday.text)
 
                     if self._phase_end:
-                        return self._is_day_phase
+                      return self._is_day_phase
                       
                     elif self._phase_start: 
                         #TODO: We should start thinking about an standalone method here
@@ -231,29 +223,32 @@ class MafiaBot:
                                                 ])
 
         for self._post in self._posts:
-            self._author  = self._post['data-autor']
+
+            self._author  = self._post['data-autor'].lower()
             self._post_id = int(self._post['data-num'])
             self._post_content = self._post.find('div', class_ = 'post-contents')
             self._post_commands = self._post_content.findAll('h5')
             self._victim = ''
 
             if self._post_id > self.current_day_start_post: # Prevent the bot from counting posts from the past day
+
                 for self._command in self._post_commands:
 
                     self._command = self._command.text.lower()
                     
-                    if 'recuento' in self._command:
+                    if self._command == 'recuento':
                         self.vote_count_request(player=self._author)
 
-                    if 'desvoto' in self._command:
+                    elif self._command == 'desvoto':
                         self._victim = 'desvoto'
                         
-                    elif 'no linchamiento' in self._command:
+                    elif self._command  == 'no linchamiento':
                         self._victim = 'no_lynch' 
                         
-                    elif 'voto' in self._command:
+                    elif self._command.startswith('voto'):
                         self._victim = self._command.split(' ')[-1]
                     
+
                     if self._victim != '': # Call votecount routine here
                         self.vote_player(player=self._author,
                                          victim=self._victim,
@@ -267,18 +262,20 @@ class MafiaBot:
         '''
         # Check this user is even playing
         if player in self.player_list or player  == self.game_master:
-
-            # Get the max. allowed vote count requests and expended requests for this player
-            self._player_max_requests = self.vote_requests.loc[self.vote_requests['player'] == player, 'vote_requested']
-            self._player_current_requests = self.vote_requests.loc[self.vote_requests['player'] == player, 'vote_requested']
-
+ 
             if player == self.game_master:
                 self._player_max_requests = 999
+                self._player_current_requests = 0
+            else:
+                # Get the max. allowed vote count requests and expended requests for this player
+                self._player_max_requests = self.vote_requests.loc[player, 'max_vote_requests']
+                self._player_current_requests = self.vote_requests.loc[player, 'vote_requested']
+
 
             if self._player_max_requests > 0:
                 if self._player_current_requests < self._player_max_requests:
-                    print('Push votecount here')
-                    self.push_vote_count()
+                    print(player, 'requested votecount')
+                    #self.push_vote_count()
                 else:
                     print(player, 'cannot requests vote counts anymore')
             #TODO: Testing statements. Remove when done 
@@ -365,11 +362,10 @@ class MafiaBot:
 
         if not self.majority_reached:
 
-            if player in self.player_list or player == self.game_master:
+            if player in self.player_list or player == self.game_master.lower():
 
-                if player == self.game_master:
+                if player == self.game_master.lower():
                     self._player_max_votes = 999
-                    player                 = 'GM'
 
                 else:
                     self._player_max_votes = self.vote_rights.loc[player, 'allowed_votes']
@@ -385,8 +381,11 @@ class MafiaBot:
                 elif victim in self.player_list:
 
                     if victim in self.vote_rights.index:
+
                         if self.vote_rights.loc[victim, 'can_be_voted'] == 1:
+
                             if self._player_current_votes < self._player_max_votes:
+
                                 self._is_valid_vote = True
                     else:
                         print('Warning: player', victim, 'is not on the vote rights table.')
@@ -416,29 +415,26 @@ class MafiaBot:
 
         if self.is_valid_vote(player, victim):
 
-            if player == self.game_master:
-                player = 'GM'
-
             if victim == 'desvoto':
                 self._old_vote = self.vote_table[self.vote_table['voted_by'] == player].index[0]
                 self.vote_table.drop(self._old_vote, axis=0, inplace=True)
                 print(player, 'unvoted.')
             
             else:
-
+               
                 self.vote_table  = self.vote_table.append({'player': victim,
                                                            'voted_by': player,
                                                            'post_id': post_id},
                                                            ignore_index=True)
                 
-                print(player, 'voted', self._victim)
+                print(player, 'voted', victim)
 
                 #Check if we have reached majority
-                if self.is_lynched(self._victim):
-                    self.lynch_player(self._victim)   
+                if self.is_lynched(victim):
+                    self.lynch_player(victim)   
 
         else:
-            print('Invalid vote by', player, 'at', post_id, 'They voted', self._victim)
+            print('Invalid vote by', player, 'at', post_id, 'They voted', victim)
 
 
     def lynch_player(self, victim:str):
@@ -451,8 +447,40 @@ class MafiaBot:
                                bot_password=self.bot_password,
                                game_master= self.game_master)
         
-        self._user.push_lynch(last_votecount=self.vote_table,  victim=victim)
+        self._user.push_lynch(last_votecount=self.translate_votecount_names(),
+                              victim=victim)
 
+    
+    def push_vote_count(self):
+        '''
+        Creates an User object and pushes a votecount
+        '''
+        
+        self.User = user.User(thread_id= self.thread_id,
+                              thread_url=self.game_thread,
+                              bot_id=self.bot_ID,
+                              bot_password=self.bot_password,
+                              game_master=self.game_master)
+                    
+        self.User.push_votecount(vote_count=self.translate_votecount_names(),
+                                 alive_players=len(self.player_list),
+                                 vote_majority=self.get_vote_majority())
+
+        del self.User
+
+
+    def translate_votecount_names(self):
+        '''
+        Translates internal lowercase names from the votecounts to 
+        their real names as set in the vote rights table
+        '''
+
+        self._translat_votetable = self.vote_table
+
+        self._translat_votetable['player']   = self._translat_votetable['player'].map(self.real_names)
+        self._translat_votetable['voted_by'] = self._translat_votetable['voted_by'].map(self.real_names)
+
+        return self._translat_votetable
 
     def get_vote_majority(self) -> int:
 
