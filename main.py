@@ -19,7 +19,7 @@ def main():
         bot_config['mv_id']       = config.loc['mediavida_user', 'value']
         bot_config['mv_password'] = config.loc['mediavida_password', 'value']
         bot_config['update_time_seconds'] = config.loc['update_time_seconds', 'value']
-
+        bot_config['post_push_interval']  = config.loc['push_vote_count_interval', 'value']
         print('Configuration... LOADED')
     
     except:
@@ -30,7 +30,9 @@ def main():
                                  game_master=bot_config['gm'],
                                  bot_userID=bot_config['mv_id'],
                                  bot_password=bot_config['mv_password'],
-                                 loop_waittime_seconds=int(bot_config['update_time_seconds']))
+                                 loop_waittime_seconds=int(bot_config['update_time_seconds']),
+                                 post_push_interval = int(bot_config['post_push_interval'])
+                                 )
 
  
 if __name__ == "__main__":

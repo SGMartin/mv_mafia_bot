@@ -10,7 +10,8 @@ import user
 class MafiaBot:
 
     def __init__(self, game_url: str, game_master: str,
-                 bot_userID:str, bot_password:str, loop_waittime_seconds:int):
+                 bot_userID:str, bot_password:str, loop_waittime_seconds:int,
+                 post_push_interval:int):
 
 
         self.game_thread           = game_url
@@ -18,6 +19,7 @@ class MafiaBot:
         self.game_master           = game_master
         self.bot_ID                = bot_userID
         self.bot_password          = bot_password
+        self.post_push_interval    = post_push_interval
 
         self.current_day_start_post  = 1
         self.last_votecount_id       = 1
@@ -27,6 +29,11 @@ class MafiaBot:
         # Load vote rights table
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
         self.vote_rights.set_index('player', inplace=True)
+
+        self.vote_requests = pd.DataFrame({'player' : self.vote_rights.index,
+                                          'max_vote_requests': self.vote_rights['allowed_vote_requests'],
+                                          'vote_requested':0})
+
 
         self.majority_reached         = False
 
@@ -65,21 +72,12 @@ class MafiaBot:
                     print('Checking page:', self._cur_page)
                     self.get_votes_from_page(page_to_scan=self._cur_page)
 
-
                 print('Finished counting.')
-                if self.last_thread_post - self.last_votecount_id >= 100: #TODO: configure this
+
+                if self.last_thread_post - self.last_votecount_id >= self.post_push_interval:
                     print('Pushing a new votecount')
-                    
-                    self.User = user.User(thread_id= self.thread_id,
-                                          thread_url=self.game_thread,
-                                          bot_id=self.bot_ID,
-                                          bot_password=self.bot_password,
-                                          game_master=self.game_master)
-                    
-                    self.User.push_votecount(vote_count=self.vote_table,
-                                             alive_players=len(self.player_list),
-                                             vote_majority=self.get_vote_majority())
-                    
+                    self.push_vote_count()  
+
                 else:
                     print('Recent votecount detected. ')
                 
@@ -89,6 +87,22 @@ class MafiaBot:
             print('Sleeping for', update_tick, 'seconds.')   
             time.sleep(update_tick)
     
+
+    def push_vote_count(self):
+        '''
+        Creates an User object and pushes a votecount
+        '''
+        self.User = user.User(thread_id= self.thread_id,
+                              thread_url=self.game_thread,
+                              bot_id=self.bot_ID,
+                              bot_password=self.bot_password,
+                              game_master=self.game_master)
+                    
+        self.User.push_votecount(vote_count=self.vote_table,
+                                 alive_players=len(self.player_list),
+                                 vote_majority=self.get_vote_majority())
+
+        del self.User
 
     #TODO: This method can and should be refactored
     def is_day_phase(self) -> bool:
@@ -132,6 +146,7 @@ class MafiaBot:
 
                         if self.current_day_start_post < int(self._post['data-num']):
                             self.majority_reached = False
+                            self.vote_requests['vote_requested'] = 0
 
                         self.current_day_start_post = int(self._post['data-num'])
                         self._is_day_phase = True
@@ -226,6 +241,9 @@ class MafiaBot:
                 for self._command in self._post_commands:
 
                     self._command = self._command.text.lower()
+                    
+                    if 'recuento' in self._command:
+                        self.vote_count_request(player=self._author)
 
                     if 'desvoto' in self._command:
                         self._victim = 'desvoto'
@@ -240,6 +258,32 @@ class MafiaBot:
                         self.vote_player(player=self._author,
                                          victim=self._victim,
                                          post_id=self._post_id)
+
+
+
+    def vote_count_request(self, player: str):
+        '''
+        Vote count requested.
+        '''
+        # Check this user is even playing
+        if player in self.player_list:
+
+            # Get the max. allowed vote count requests and expended requests for this player
+            self._player_max_requests = self.vote_requests.loc[self.vote_requests['player'] == player, 'vote_requested']
+            self._player_current_requests = self.vote_requests.loc[self.vote_requests['player'] == player, 'vote_requested']
+
+            if self._player_max_requests > 0:
+                if self._player_current_requests < self._player_max_requests:
+                    print('Push votecount here')
+                    self.push_vote_count()
+                else:
+                    print(player, 'cannot requests vote counts anymore')
+            #TODO: Testing statements. Remove when done 
+            else:
+                print(player, 'cannot request vote counts')
+
+        else:
+            print('Vote requested by non playing user:', player)
 
 
     def request_page_count(self):
