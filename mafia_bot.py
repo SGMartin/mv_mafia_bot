@@ -448,7 +448,7 @@ class MafiaBot:
                                game_master= self.game_master)
         
         self._user.push_lynch(last_votecount=self.translate_votecount_names(),
-                              victim=victim)
+                              victim=self.real_names[victim])
 
     
     def push_vote_count(self):
