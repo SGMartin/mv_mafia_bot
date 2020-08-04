@@ -266,11 +266,14 @@ class MafiaBot:
         Vote count requested.
         '''
         # Check this user is even playing
-        if player in self.player_list:
+        if player in self.player_list or player  == self.game_master:
 
             # Get the max. allowed vote count requests and expended requests for this player
             self._player_max_requests = self.vote_requests.loc[self.vote_requests['player'] == player, 'vote_requested']
             self._player_current_requests = self.vote_requests.loc[self.vote_requests['player'] == player, 'vote_requested']
+
+            if player == self.game_master:
+                self._player_max_requests = 999
 
             if self._player_max_requests > 0:
                 if self._player_current_requests < self._player_max_requests:
