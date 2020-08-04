@@ -9,7 +9,8 @@ import pandas as pd
 
 class User:
 
-    def  __init__(self, thread_id:int, thread_url:str, bot_id:str, bot_password:str, game_master:str):
+    def  __init__(self, thread_id:int, thread_url:str, bot_id:str,
+                  bot_password:str, game_master:str):
 
         
         # Load vote rights table, we need vote visibility info.
@@ -17,6 +18,7 @@ class User:
 
         # Attempt to log into MV with these credentials.
         #TODO: Log errors here
+
         self.thread_url = thread_url
         self.thread_id  = thread_id
 
@@ -28,16 +30,20 @@ class User:
         self.browser = self.login(self.user_id, self.password)
        
 
-    def push_votecount(self, vote_count, alive_players, vote_majority):
+    def push_votecount(self, vote_count, alive_players, vote_majority, post_id):
 
-        self._message_to_post = self.generate_vote_message(vote_count, alive_players, vote_majority)
+        self._message_to_post = self.generate_vote_message(vote_count=vote_count,
+                                                           alive_players=alive_players,
+                                                           vote_majority=vote_majority,
+                                                           post_id=post_id)
         self.post(self._message_to_post)
 
     
-    def push_lynch(self, last_votecount, victim):
+    def push_lynch(self, last_votecount, victim, post_id):
 
         self._message_to_post = self.generate_lynch_message(last_votecount=last_votecount,
-                                                            victim=victim)
+                                                            victim=victim,
+                                                            post_id=post_id)
         self.post(self._message_to_post)
 
    
@@ -65,16 +71,17 @@ class User:
         
         return self.browser.url
 
-    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int):
+    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int, post_id:int):
 
         self._header = "# Recuento de votos \n"
 
         self._votes_rank  = self.generate_string_from_vote_count(vote_count)
 
-        self._footer  = (f'_Con {alive_players}  jugadores vivos, la mayoría se alcanza con {vote_majority} votos._ \n \n')
+        self._footer  = (f'_Con {alive_players}  jugadores vivos, la mayoría se alcanza con {vote_majority} votos._ \n')
+        self._updated = (f'_Actualizado hasta el mensaje: {post_id}._ \n \n')
         self._bot_ad  = "**Soy un bot de recuento automático. Por favor, no me cites _¡N'wah!_** \n"
 
-        self._message  = self._header + self._votes_rank + '\n' + self._footer + self._bot_ad
+        self._message  = self._header + self._votes_rank + '\n' + self._footer + self._updated + self._bot_ad
 
         return self._message
 
@@ -101,12 +108,12 @@ class User:
         return self._vote_rank
 
 
-    def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str):
+    def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str, post_id:int):
 
         if victim  == 'no_lynch':
-            self._header = f'### ¡Se ha alcanzado mayoría absoluta. Nadie será linchado! ### \n \n'
+            self._header = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}. Nadie será linchado! ### \n \n'
         else:
-            self._header   = f'### ¡Se ha alcanzado mayoría absoluta, se linchará a {victim}! ### \n \n'
+            self._header   = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}, se linchará a {victim}! ### \n \n'
 
         self._final_votecount = self.generate_string_from_vote_count(vote_count=last_votecount)
 

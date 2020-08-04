@@ -260,30 +260,8 @@ class MafiaBot:
         '''
         Vote count requested.
         '''
-        # Check this user is even playing
-        if player in self.player_list or player  == self.game_master:
- 
-            if player == self.game_master:
-                self._player_max_requests = 999
-                self._player_current_requests = 0
-            else:
-                # Get the max. allowed vote count requests and expended requests for this player
-                self._player_max_requests = self.vote_requests.loc[player, 'max_vote_requests']
-                self._player_current_requests = self.vote_requests.loc[player, 'vote_requested']
-
-
-            if self._player_max_requests > 0:
-                if self._player_current_requests < self._player_max_requests:
-                    print(player, 'requested votecount')
-                    #self.push_vote_count()
-                else:
-                    print(player, 'cannot requests vote counts anymore')
-            #TODO: Testing statements. Remove when done 
-            else:
-                print(player, 'cannot request vote counts')
-
-        else:
-            print('Vote requested by non playing user:', player)
+        if player == self.game_master.lower():
+            print('Recuento solicitado')
 
 
     def request_page_count(self):
@@ -448,7 +426,8 @@ class MafiaBot:
                                game_master= self.game_master)
         
         self._user.push_lynch(last_votecount=self.translate_votecount_names(),
-                              victim=self.real_names[victim])
+                              victim=self.real_names[victim],
+                              post_id=self.last_thread_post)
 
     
     def push_vote_count(self):
@@ -464,7 +443,8 @@ class MafiaBot:
                     
         self.User.push_votecount(vote_count=self.translate_votecount_names(),
                                  alive_players=len(self.player_list),
-                                 vote_majority=self.get_vote_majority())
+                                 vote_majority=self.get_vote_majority(),
+                                 post_id=self.last_thread_post)
 
         del self.User
 
