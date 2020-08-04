@@ -106,7 +106,7 @@ class User:
         if victim  == 'no_lynch':
             self._header = f'### ¡Se ha alcanzado mayoría absoluta. Nadie será linchado! ### \n \n'
         else:
-            self._header   = f'### ¡Se ha alcanzado mayoría absoluta, {victim} será linchado en breves! ### \n \n'
+            self._header   = f'### ¡Se ha alcanzado mayoría absoluta, {victim} será linchad@ en breves! ### \n \n'
 
         self._final_votecount = self.generate_string_from_vote_count(vote_count=last_votecount)
 
