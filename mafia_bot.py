@@ -409,13 +409,13 @@ class MafiaBot:
 
                 #Check if we have reached majority
                 if self.is_lynched(victim):
-                    self.lynch_player(victim)   
+                    self.lynch_player(victim, post_id)   
 
         else:
             print('Invalid vote by', player, 'at', post_id, 'They voted', victim)
 
 
-    def lynch_player(self, victim:str):
+    def lynch_player(self, victim:str, post_id:int):
 
         self.majority_reached = True
 
@@ -427,7 +427,7 @@ class MafiaBot:
         
         self._user.push_lynch(last_votecount=self.translate_votecount_names(),
                               victim=self.real_names[victim],
-                              post_id=self.last_thread_post)
+                              post_id=post_id)
 
     
     def push_vote_count(self):
