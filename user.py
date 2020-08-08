@@ -110,16 +110,19 @@ class User:
 
     def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str, post_id:int):
 
+        self._header = '# Recuento de votos final \n'
+
         if victim  == 'no_lynch':
-            self._header = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}. Nadie será linchado! ### \n \n'
+            self._announcement = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}. Nadie será linchado! ### \n'
+        
         else:
-            self._header   = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}, se linchará a {victim}! ### \n \n'
+            self._announcement = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}, se linchará a {victim}! ### \n'
 
         self._final_votecount = self.generate_string_from_vote_count(vote_count=last_votecount)
 
         self._no_votes = f'**Ya no se admiten más votos.** \n \n'
         self._footer   = f'@{self.game_master}, el pueblo ha hablado. \n'
 
-        self._message = self._header + self._final_votecount + '\n' + self._no_votes + self._footer
+        self._message = self._header + self._final_votecount + '\n' + self._announcement + self._no_votes + self._footer
 
         return self._message
