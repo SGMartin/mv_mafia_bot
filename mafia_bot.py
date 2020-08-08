@@ -43,6 +43,9 @@ class MafiaBot:
 
         self.majority_reached         = False
 
+        ## Temporal fix until proper votecount request queue is implemented
+        self.gm_vote_request          = False
+
         print('Mafia MV Bot started!')
         print('Game run by:', game_master)
         print('Bot ID is', self.bot_ID)
@@ -57,36 +60,41 @@ class MafiaBot:
             # Initialize empty vote table
             self.vote_table = pd.DataFrame(columns=['player', 'voted_by', 'post_id'])
 
-            if self.is_day_phase() and not self.majority_reached : # Daytime, count
+            if self.is_day_phase(): # Daytime, count
 
                 self.last_votecount_id = self.get_last_votecount()
-                self.last_thread_post  = self.get_last_post()
 
-                print(f'Last vote count: {self.last_votecount_id}. Last reply: {self.last_thread_post}')
+                if not self.majority_reached:
 
+                    self.last_thread_post  = self.get_last_post()
 
-                print('Starting vote count...')
-                 
-                self._start_page = self.get_page_number_from_post(self.current_day_start_post)
-                self._page_count = self.request_page_count()
+                    print('Starting vote count...')
+                    print(f'Last vote count: {self.last_votecount_id}. Last reply: {self.last_thread_post}')
+                    
+                    self._start_page = self.get_page_number_from_post(self.current_day_start_post)
+                    self._page_count = self.request_page_count()
 
-                print('Detected day start at page:', self._start_page)
-                print('Detected', self._page_count, 'pages')
+                    print('Detected day start at page:', self._start_page)
+                    print('Detected', self._page_count, 'pages')
 
-                for self._cur_page in range(self._start_page, (self._page_count + 1)):
+                    for self._cur_page in range(self._start_page, (self._page_count + 1)):
 
-                    print('Checking page:', self._cur_page)
-                    self.get_votes_from_page(page_to_scan=self._cur_page)
+                        print('Checking page:', self._cur_page)
+                        self.get_votes_from_page(page_to_scan=self._cur_page)
 
-                print('Finished counting.')
+                    print('Finished counting.')
 
-                if self.last_thread_post - self.last_votecount_id >= self.post_push_interval:
-                    print('Pushing a new votecount')
-                    self.push_vote_count()  
+                    if self.update_thread_vote_count():
 
-                else:
-                    print('Recent votecount detected. ')
+                        print('Pushing a new votecount')
+                        self.push_vote_count()  
+                    
+                    else:
+                        print('Recent votecount detected. ')
                 
+                else:
+                    print('Majority already reached. Skipping...')
+                    
             else:
                 print('Night phase detected. Skipping...')
             
@@ -146,6 +154,23 @@ class MafiaBot:
 
         return self._is_day_phase
 
+
+    def update_thread_vote_count(self) -> bool:
+        '''
+        Should we push a new vote count?
+        '''
+        self._push = False
+
+        self._posts_since_count = self.last_thread_post - self.last_votecount_id
+
+        if (self._posts_since_count >= self.post_push_interval) or self.gm_vote_request:
+
+            self._push           = True
+            self.gm_vote_request = False
+            
+        return self._push
+
+
     def get_last_votecount(self) -> int:
         '''
         Get the bot last votecount. Do not take into account the GM's manual
@@ -176,9 +201,16 @@ class MafiaBot:
 
                 for self._pcount in self._headers:
                     
-                    self._last_count_id = re.findall('^Recuento de votos', self._pcount.text)
-   
-                    if self._last_count_id:
+                    self._last_count_id = re.findall('^Recuento de votos$', self._pcount.text)
+                    self._last_count_was_lynch = re.findall('^Recuento de votos final$', self._pcount.text)
+
+                    ## Hacky way to cover oddball case of the bot 
+                    ## shutting down and a player editing after EoD
+
+                    if self._last_count_was_lynch or self._last_count_id:
+
+                        if self._last_count_was_lynch:
+                            self.majority_reached = True
 
                         self._last_votecount_id = int(self._post['data-num'])
                         return self._last_votecount_id
@@ -237,7 +269,9 @@ class MafiaBot:
                     self._command = self._command.text.lower()
                     
                     if self._command == 'recuento':
-                        self.vote_count_request(player=self._author)
+
+                        self.vote_count_request(player=self._author,
+                                                post_id=self._post_id)
 
                     elif self._command == 'desvoto':
                         self._victim = 'desvoto'
@@ -256,12 +290,15 @@ class MafiaBot:
 
 
 
-    def vote_count_request(self, player: str):
+    def vote_count_request(self, player: str, post_id: int):
         '''
         Vote count requested.
         '''
         if player == self.game_master.lower():
-            print('Recuento solicitado')
+
+           ## GM request after our last vote count
+           if post_id > self.last_votecount_id:
+               self.gm_vote_request = True
 
 
     def request_page_count(self):
