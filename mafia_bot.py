@@ -42,6 +42,7 @@ class MafiaBot:
 
 
         self.majority_reached         = False
+        self.lynch_announcement_post  = 0
 
         ## Temporal fix until proper votecount request queue is implemented
         self.gm_vote_request          = False
@@ -70,7 +71,7 @@ class MafiaBot:
 
                     print('Starting vote count...')
                     print(f'Last vote count: {self.last_votecount_id}. Last reply: {self.last_thread_post}')
-                    
+
                     self._start_page = self.get_page_number_from_post(self.current_day_start_post)
                     self._page_count = self.request_page_count()
 
@@ -206,10 +207,9 @@ class MafiaBot:
 
                     ## Hacky way to cover oddball case of the bot 
                     ## shutting down and a player editing after EoD
-
                     if self._last_count_was_lynch or self._last_count_id:
 
-                        if self._last_count_was_lynch:
+                        if self._last_count_was_lynch and self.current_day_start_post < self.lynch_announcement_post:
                             self.majority_reached = True
 
                         self._last_votecount_id = int(self._post['data-num'])
@@ -454,8 +454,10 @@ class MafiaBot:
 
     def lynch_player(self, victim:str, post_id:int):
 
-        self.majority_reached = True
+        self.majority_reached        = True
+        self.lynch_announcement_post = post_id
 
+        
         self._user = user.User(thread_id=self.thread_id, 
                                thread_url= self.game_thread,
                                bot_id= self.bot_ID,
