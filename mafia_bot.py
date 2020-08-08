@@ -42,7 +42,6 @@ class MafiaBot:
 
 
         self.majority_reached         = False
-        self.lynch_announcement_post  = 0
 
         ## Temporal fix until proper votecount request queue is implemented
         self.gm_vote_request          = False
@@ -209,7 +208,7 @@ class MafiaBot:
                     ## shutting down and a player editing after EoD
                     if self._last_count_was_lynch or self._last_count_id:
 
-                        if self._last_count_was_lynch and self.current_day_start_post < self.lynch_announcement_post:
+                        if self._last_count_was_lynch and self.current_day_start_post < int(self._post['data-num']):
                             self.majority_reached = True
 
                         self._last_votecount_id = int(self._post['data-num'])
@@ -455,9 +454,8 @@ class MafiaBot:
     def lynch_player(self, victim:str, post_id:int):
 
         self.majority_reached        = True
-        self.lynch_announcement_post = post_id
 
-        
+
         self._user = user.User(thread_id=self.thread_id, 
                                thread_url= self.game_thread,
                                bot_id= self.bot_ID,
