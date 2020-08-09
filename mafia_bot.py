@@ -259,12 +259,12 @@ class MafiaBot:
             self._post_id = int(self._post['data-num'])
             self._post_content = self._post.find('div', class_ = 'post-contents')
             self._post_commands = self._post_content.findAll('h5')
-            self._victim = ''
 
-            if self._post_id > self.current_day_start_post: # Prevent the bot from counting posts from the past day
+            if self._post_id > self.current_day_start_post:
 
                 for self._command in self._post_commands:
 
+                    self._victim = '' 
                     self._command = self._command.text.lower()
                     
                     if self._command == 'recuento':
@@ -275,13 +275,16 @@ class MafiaBot:
                     elif self._command == 'desvoto':
                         self._victim = 'desvoto'
                         
-                    elif self._command  == 'no linchamiento':
-                        self._victim = 'no_lynch' 
-                        
                     elif self._command.startswith('voto'):
-                        self._victim = self._command.split(' ')[-1]
-                    
 
+                        if self._command.endswith('no linchamiento'):
+                            self._victim = 'no_lynch'
+
+                        else:
+                            self._victim = self._command.split(' ')[-1]
+
+                       
+                    
                     if self._victim != '': # Call votecount routine here
                         self.vote_player(player=self._author,
                                          victim=self._victim,
