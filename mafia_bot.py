@@ -258,7 +258,7 @@ class MafiaBot:
             self._author  = self._post['data-autor'].lower()
             self._post_id = int(self._post['data-num'])
             self._post_content = self._post.find('div', class_ = 'post-contents')
-            self._post_commands = self._post_content.findAll('h5')
+            self._post_commands = self._post_content.findAll('h4')
 
             if self._post_id > self.current_day_start_post:
 
