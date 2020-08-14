@@ -504,5 +504,9 @@ class MafiaBot:
 
     def get_vote_majority(self) -> int:
 
-        self._majority = int(round(len(self.player_list)/2, 0)) + 1
+        if (len(self.player_list % 2)) == 0:
+            self._majority = int(round(len(self.player_list)/2, 0)) + 1
+        else:
+            self._majority = int(round(len(self.player_list)/2, 0))
+        
         return self._majority
