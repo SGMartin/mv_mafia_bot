@@ -1,3 +1,4 @@
+import math
 import requests
 import time
 import re
@@ -505,8 +506,8 @@ class MafiaBot:
     def get_vote_majority(self) -> int:
 
         if (len(self.player_list) % 2) == 0:
-            self._majority = int(round(len(self.player_list)/2, 0)) + 1
+            self._majority = int(len(self.player_list)/2) + 1
         else:
-            self._majority = int(round(len(self.player_list)/2, 0))
+            self._majority = math.ceil(len(self.player_list) / 2)
         
         return self._majority
