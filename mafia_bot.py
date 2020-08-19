@@ -463,7 +463,7 @@ class MafiaBot:
             ##We found the post of interest
             if int(self._post['data-num']) == start_day_post_id: 
 
-                # Get the first list. It should be the player lists according to the templace
+                # Get the first list. It should be the player lists according to the template
                 self._players = self._post.find('ol').find_all('a')
 
                 for self._player in self._players:
