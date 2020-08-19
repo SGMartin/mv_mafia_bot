@@ -1,3 +1,4 @@
+import logging
 import math
 import requests
 import time
@@ -51,6 +52,7 @@ class MafiaBot:
         print('Game run by:', game_master)
         print('Bot ID is', self.bot_ID)
 
+        logging.info(f'Bot started. Game run by {game_master}. Bot id is: {self.bot_ID}')
 
         self.run(loop_waittime_seconds)
     
@@ -74,43 +76,49 @@ class MafiaBot:
 
             if self.is_day_phase(): # Daytime, count
 
+                print('We are on day time!')
+
                 self.last_votecount_id = self.get_last_votecount()
 
                 if not self.majority_reached:
 
                     self.last_thread_post  = self.get_last_post()
 
-                    print('Starting vote count...')
-                    print(f'Last vote count: {self.last_votecount_id}. Last reply: {self.last_thread_post}')
+                    logging.info(f'Starting vote count. Last vote count: {self.last_votecount_id}. Last reply: {self.last_thread_post}')
 
                     self._start_page = self.get_page_number_from_post(self.current_day_start_post)
                     self._page_count = self.request_page_count()
 
-                    print('Detected day start at page:', self._start_page)
-                    print('Detected', self._page_count, 'pages')
+                    logging.info(f'Detected day start at page: {self._start_page}')
+                    logging.info(f'Detected {self._page_count} pages')
 
                     for self._cur_page in range(self._start_page, (self._page_count + 1)):
 
-                        print('Checking page:', self._cur_page)
+                        logging.info(f'Checking page: {self._cur_page}')
+
                         self.get_votes_from_page(page_to_scan=self._cur_page)
 
-                    print('Finished counting.')
+                    logging.info('Finished counting.')
+                    print('Finished counting')
 
                     if self.update_thread_vote_count():
 
-                        print('Pushing a new votecount')
+                        logging.info('Pushing a new votecount')
                         self.push_vote_count()  
                     
                     else:
-                        print('Recent votecount detected. ')
+                        logging.info('Recent votecount detected. ')
                 
                 else:
-                    print('Majority already reached. Skipping...')
+                    logging.info('Majority already reached. Skipping...')
                     
             else:
-                print('Night phase detected. Skipping...')
+                logging.info('Night phase detected. Skipping...')
+                print('We are on night phase!')
             
-            print('Sleeping for', update_tick, 'seconds.')   
+            logging.info(f'Sleeping for {update_tick} seconds.')  
+
+            print(f'Sleeping for {update_tick} seconds.')
             time.sleep(update_tick)
     
 
@@ -157,8 +165,8 @@ class MafiaBot:
                       return self._is_day_phase
                       
                     elif self._phase_start: 
-                        #TODO: We should start thinking about an standalone method here
 
+                        #TODO: We should start thinking about an standalone method here
                         if self.current_day_start_post < int(self._post['data-num']):
                             self.majority_reached = False
                             self.vote_requests['vote_requested'] = 0
@@ -509,9 +517,9 @@ class MafiaBot:
 
                                 self._is_valid_vote = True
                     else:
-                        print('Warning: player', victim, 'is not on the vote rights table.')
+                        logging.warning(f'Player {victim} is not on the vote rights table.')
         else:
-            print('No more votes because majority was reached!')
+            logging.info(f'Rejecting vote from {player} to {victim} because majority was already reached')
         
         return self._is_valid_vote
 
@@ -557,7 +565,8 @@ class MafiaBot:
             if victim == 'desvoto':
                 self._old_vote = self.vote_table[self.vote_table['voted_by'] == player].index[0]
                 self.vote_table.drop(self._old_vote, axis=0, inplace=True)
-                print(player, 'unvoted.')
+
+                logging.info(f'Player {player} unvoted at {post_id}')
             
             else:
                
@@ -566,14 +575,14 @@ class MafiaBot:
                                                            'post_id': post_id},
                                                            ignore_index=True)
                 
-                print(player, 'voted', victim)
+                logging.info(f'{player} voted {victim} at {post_id}')
 
                 #Check if we have reached majority
                 if self.is_lynched(victim):
                     self.lynch_player(victim, post_id)   
 
         else:
-            print('Invalid vote by', player, 'at', post_id, 'They voted', victim)
+            logging.warning(f'Invalid vote by {player} at {post_id}. They voted {victim}')
 
 
     def lynch_player(self, victim:str, post_id:int):
