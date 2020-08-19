@@ -31,10 +31,10 @@ class MafiaBot:
         # Load vote rights table
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
 
-        ## use lowercase player names as keys, player column as true names
+        # use lowercase player names as keys, player column as true names
         self.vote_rights.index = self.vote_rights['player'].str.lower()
 
-        ## We'll use this table as the master table for real names
+        # We'll use this table as the master table for real names
         self.real_names = self.vote_rights['player'].to_dict()
         self.real_names[self.game_master.lower()] = 'GM'
 
@@ -45,7 +45,7 @@ class MafiaBot:
 
         self.majority_reached         = False
 
-        ## Temporal fix until proper votecount request queue is implemented
+        # Temporal fix until proper votecount request queue is implemented
         self.gm_vote_request          = False
 
         print('Mafia MV Bot started!')
@@ -152,9 +152,9 @@ class MafiaBot:
             self._posts        = self._current_page.find_all('div', attrs={'data-num':True,
                                                                           'data-autor':True})
           
-            for self._post in reversed(self._posts): #from more recent to older posts
+            for self._post in reversed(self._posts): # from more recent to older posts
 
-                self._headers = self._post.find_all('h2') #get all GM h2 headers
+                self._headers = self._post.find_all('h2') # get all GM h2 headers
 
                 for self._pday in self._headers:
                     
@@ -233,7 +233,7 @@ class MafiaBot:
             self._posts        = self._current_page.find_all('div', attrs={'data-num':True,
                                                                           'data-autor':True})
           
-            for self._post in reversed(self._posts): #from more recent to older posts
+            for self._post in reversed(self._posts): # from more recent to older posts
 
                 self._headers = self._post.find_all('h2') #get all GM h2 headers
 
@@ -242,8 +242,8 @@ class MafiaBot:
                     self._last_count_id = re.findall('^Recuento de votos$', self._pcount.text)
                     self._last_count_was_lynch = re.findall('^Recuento de votos final$', self._pcount.text)
 
-                    ## Hacky way to cover oddball case of the bot 
-                    ## shutting down and a player editing after EoD
+                    # Hacky way to cover oddball case of the bot 
+                    # shutting down and a player editing after EoD
                     if self._last_count_was_lynch or self._last_count_id:
 
                         if self._last_count_was_lynch and self.current_day_start_post < int(self._post['data-num']):
@@ -342,7 +342,7 @@ class MafiaBot:
 
                        
                     
-                    if self._victim != '': # Call votecount routine here
+                    if self._victim != '': 
                         self.vote_player(player=self._author,
                                          victim=self._victim,
                                          post_id=self._post_id)
@@ -367,7 +367,7 @@ class MafiaBot:
         '''
         if player == self.game_master.lower():
 
-           ## GM request after our last vote count
+           # GM request after our last vote count
            if post_id > self.last_votecount_id:
                self.gm_vote_request = True
 
@@ -401,7 +401,7 @@ class MafiaBot:
         An int representing the total page length of the thread.
         '''
 
-        #Let's try to parse the page count from the bottom  page panel
+        # Let's try to parse the page count from the bottom  page panel
         self._page_count = 1
         try:
             self._panel_layout = BeautifulSoup(request_text, 'html.parser') 
@@ -460,7 +460,7 @@ class MafiaBot:
 
         for self._post in self._all_posts:
 
-            ##We found the post of interest
+            # We found the post of interest
             if int(self._post['data-num']) == start_day_post_id: 
 
                 # Get the first list. It should be the player lists according to the template
