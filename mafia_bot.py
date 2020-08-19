@@ -55,6 +55,17 @@ class MafiaBot:
         self.run(loop_waittime_seconds)
     
     def run(self, update_tick:int):
+        '''
+        Main bot loop. Called in class constructor. It iterates each N seconds,
+        as defined by the config file. For each iteration, it parses the game
+        thread if we are on day phase, then counts all the votes and decides
+        if a new vote count should be pushed.
+
+        Parameters: 
+        update_tick (int): Seconds to pass between bot iterations.
+
+        Returns: None
+        '''
 
         while(True):
 
@@ -107,10 +118,13 @@ class MafiaBot:
     #TODO: This method can and should be refactored
     def is_day_phase(self) -> bool:
         '''
-        Attempt to parse h2 tags in GM posts to get the current  phase.
-        It will set some flags for the main loop.
+        Parse the GM posts to figure out if the game is currently on game phase.
+
+        Parameters: None
+
+        Returns:
+        True/False (bool): Whether game is on day phase.
         '''
-   
         self._is_day_phase     = False
 
         self._gm_posts         = self.game_thread + '?u=' + self.game_master
@@ -158,8 +172,17 @@ class MafiaBot:
 
     def update_thread_vote_count(self) -> bool:
         '''
-        Should we push a new vote count?
+        Decides if a new vote count should be posted based on:
+        
+        a) Pending GM requests.\n
+        b) How many messages were posted since the last vote count. This is used-defined.
+
+        Parameters: None
+
+        Returns:
+        True/False (bool): Whether to push a new vote count.
         '''
+
         self._push = False
 
         self._posts_since_count = self.last_thread_post - self.last_votecount_id
@@ -174,9 +197,15 @@ class MafiaBot:
 
     def get_last_votecount(self) -> int:
         '''
-        Get the bot last votecount. Do not take into account the GM's manual
-        votecounts. It does not matter.
+        Parses the bot messages in the game thread to get the post id of the 
+        last automated vote count pushed.
+    
+        Parameters: None
+
+        Returns:
+        An int representing the post id of the last automated vote count.
         '''
+
         self._bot_posts         = self.game_thread + '?u=' + self.bot_ID
         self._bot_posts         = requests.get(self._bot_posts).text
 
@@ -221,7 +250,13 @@ class MafiaBot:
     
     def get_last_post(self) -> int:
         '''
-        Get the last post id of the thread.
+        Parses the game thread messages to get the post id of the 
+        last posted message.
+    
+        Parameters: None
+
+        Returns:
+        An int representing the post id of the last posted message.
         '''
         self._last_post_id = 1
 
@@ -238,6 +273,19 @@ class MafiaBot:
 
 
     def get_votes_from_page(self, page_to_scan:int):
+        '''
+        Parses a defined page of the game thread and retrieves all h4 
+        HTML elements, which may be commands or votes. Each h4 element is evaluated
+        to decide if a vote or a command was casted. 
+
+        For a vote, the vote_player function will be called. For a command,
+        the command routine is called instead.
+    
+        Parameters:\n
+        page_to_scan (int): A game thread page to parse.
+
+        Returns: None
+        '''
 
         self._parsed_url = f'{self.game_thread}/{page_to_scan}'
         self._request    = requests.get(self._parsed_url).text
@@ -295,7 +343,19 @@ class MafiaBot:
 
     def vote_count_request(self, player: str, post_id: int):
         '''
-        Vote count requested.
+        This function is called after a possible vote count request by the game
+        GM is parsed. It first evaluates if the request originated from the GM
+        and then checks if the request post id is higher than the last automated
+        vote count ID. 
+
+        If the request ID is higher than  the last vote count id, the flag
+        self.gm_vote_requests is set to True.
+
+        Parameters:\n
+        player (string): The author of the vote count request.
+        post_id (int): The post ID of the vote request.
+
+        Returns: None
         '''
         if player == self.game_master.lower():
 
@@ -306,11 +366,15 @@ class MafiaBot:
 
     def request_page_count(self):
         '''
-        Gets page count by performing a standalone request to the game
-        thread. Then, get_page_count_from page is called to retrieve
-        the page count.
-        '''
+        Performs an HTML request of the game thread and parses the resulting
+        HTML code to get the total page length of the thread.
 
+        Parameters: None.
+
+        Returns: 
+        An int representing the total page length of the thread.
+        '''
+        
         self._request = requests.get(self.game_thread).text
         self._page_count = self.get_page_count_from_page(self._request)
 
@@ -318,6 +382,16 @@ class MafiaBot:
 
 
     def get_page_count_from_page(self, request_text):
+        '''
+        Parses an used defined HTML code from mediavida.com to extract the page
+        count of a given thread. To do so it uses BeautifulSoup as a parser engine.
+
+        Parameters: 
+        request_text: A string of HTML text from the requests.get library.
+
+        Returns: 
+        An int representing the total page length of the thread.
+        '''
 
         #Let's try to parse the page count from the bottom  page panel
         self._page_count = 1
@@ -334,20 +408,36 @@ class MafiaBot:
 
 
     def get_page_number_from_post(self, post_id:int):
+        '''
+        Calculate the page number of a given post by assuming each game thread
+        page has 30 posts.
 
-        if (post_id / 30 ) % 1 == 0:
-            self._page_number = int(post_id / 30)
-        else:
-            self._page_number = int(round((post_id  / 30) + 0.5))
+        Parameters: 
+        post_id: The ID of the post of interest.
+
+        Returns: 
+        An int representing the page number of the input post.
+        '''
+
+        self._page_number = math.ceil(post_id / 30)
 
         return self._page_number 
 
 
     def get_player_list(self, start_day_post_id:int) -> list():
         '''
-        Parses opening day post to get a list of active players. We are sent
-        an http get request with the day post. This way, we can recycle a previous
-        request.
+        Based on a given post ID representing the day start, this function parses
+        said post to retrieve a list of alive players by extracting all <ol> and
+        <a> elements. 
+
+        This is based on a day start scheme which must be used for the bot to
+        work properly.
+
+        Parameters:\n 
+        post_id: The ID of the post which starts the game day.
+
+        Returns:\n 
+        A list (collection) of (string) players.
         '''
         self._start_day_page = self.get_page_number_from_post(start_day_post_id)
 
@@ -375,6 +465,19 @@ class MafiaBot:
 
 
     def is_valid_vote(self, player:str, victim:str) -> bool:
+        '''
+        Evaluates if a given vote is valid. A valid vote has to fulfill the following
+        requirements:
+
+        a) The victim can be voted: alive, playing and set as vote candidate in the vote rights table.\n
+        b) The voting player must have casted less votes than their current limit.
+
+        Parameters:\n 
+        player (str): The player casting the vote.
+        victim (str): The player who receives the vote.\n
+        Returns:\n 
+        True if the vote is valid, False otherwise.
+        '''
 
         self._is_valid_vote = False
 
@@ -415,7 +518,15 @@ class MafiaBot:
     
     def is_lynched(self, victim:str) -> bool:
         '''
-        Check if this player has reached lynch majority to be lynched
+        Checks if a given player has received enough votes to be lynched. This
+        function evaluates if a given player accumulates enough votes by calculating
+        the current absolute majority required and adding to it a player specific
+        lynch modifier as defined in the vote rights table.
+
+        Parameters:\n 
+        victim (str): The player who receives the vote.\n
+        Returns:\n 
+        True if the player should be lynched.  False otherwise.
         '''
         self._lynched = False
 
@@ -430,6 +541,16 @@ class MafiaBot:
 
     
     def vote_player(self, player:str, victim:str, post_id:int):
+        '''
+        This function process votes and keeps track of the vote table. Votes are added or removed based on the victim. 
+
+        Parameters:\n
+        player (str): The player who casts the vote.\n
+        victim (str): The player who receives the vote. Can be set to "desvoto" to remove a previously casted voted by player.\n
+        post_id  (int): The post ID where the vote was casted.\n
+        Returns:\n 
+        True if the player should be lynched.  False otherwise.
+        '''
 
         if self.is_valid_vote(player, victim):
 
@@ -456,6 +577,16 @@ class MafiaBot:
 
 
     def lynch_player(self, victim:str, post_id:int):
+        '''
+        When this function is called, a new User object is built to push a vote
+        count in which the lynch is  announced. It also sets self.majority_reached
+        to True, indicating to the bot that no more votes are allowed until a new day starts. 
+
+        Parameters:\n
+        victim (str): The player to lynch.\n
+        post_id  (int): The post ID with the vote that triggered the lynch.\n
+        Returns: None
+        '''
 
         self.majority_reached        = True
 
@@ -473,7 +604,12 @@ class MafiaBot:
     
     def push_vote_count(self):
         '''
-        Creates an User object and pushes a votecount
+        When this function is called, a new User object is built to push a vote
+        count using the current vote table. The object is deleted when the function
+        ends.
+
+        Parameters: None
+        Returns: None
         '''
         
         self.User = user.User(thread_id= self.thread_id,
@@ -492,8 +628,18 @@ class MafiaBot:
 
     def translate_votecount_names(self):
         '''
-        Translates internal lowercase names from the votecounts to 
-        their real names as set in the vote rights table
+        This function translates lowercased player names to their actual mediavida
+        names for a fancier vote count post. To do so, it relies on the vote_rights
+        table, which features a player column. A dictionary is built in which
+        the table index is the lowercased player name and the dict. values are taken
+        from the player column. 
+
+        The vote table names are then mapped using this dictionary.
+
+        Parameters: None \n
+        Returns: 
+        A vote table pandas object in which lowercase names have been mapped to 
+        their real mediavida names.
         '''
 
         self._translat_votetable = self.vote_table
@@ -504,6 +650,14 @@ class MafiaBot:
         return self._translat_votetable
 
     def get_vote_majority(self) -> int:
+        '''
+        Calculates the amount of votes necessary to reach an absolute majority
+        and lynch a player based on the amount of alive players. 
+
+        Parameters: None \n
+        Returns: \n
+        self._majority (int): The absolute majority of votes required  to lynch a player.
+        '''
 
         self._majority = math.ceil(len(self.player_list) / 2)
                 
