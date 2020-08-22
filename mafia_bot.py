@@ -668,6 +668,9 @@ class MafiaBot:
         self._majority (int): The absolute majority of votes required  to lynch a player.
         '''
 
-        self._majority = math.ceil(len(self.player_list) / 2)
+        if (len(self.player_list) % 2) == 0:
+            self._majority = math.ceil(len(self.player_list) / 2) + 1
+        else:
+            self._majority = math.ceil(len(self.player_list) / 2)
                 
         return self._majority
