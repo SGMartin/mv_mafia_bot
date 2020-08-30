@@ -56,6 +56,7 @@ class MafiaBot:
 
         self.run(loop_waittime_seconds)
     
+    
     def run(self, update_tick:int):
         '''
         Main bot loop. Called in class constructor. It iterates each N seconds,
@@ -355,7 +356,7 @@ class MafiaBot:
 
         if post_contents.startswith('voto'):
 
-            if 'como' in self._command and self._author == self.game_master: ## The GM is trying to vote with alias
+            if 'como' in self._command and self._author == self.game_master.lower(): ## The GM is trying to vote with alias
                 
                 self._alias  = self._command[-1]
 
