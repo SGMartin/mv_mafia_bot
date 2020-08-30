@@ -320,34 +320,58 @@ class MafiaBot:
             if self._post_id > self.current_day_start_post:
 
                 for self._command in self._post_commands:
-
-                    self._victim = '' 
+ 
                     self._command = self._command.text.lower()
                     
                     if self._command == 'recuento':
 
                         self.vote_count_request(player=self._author,
                                                 post_id=self._post_id)
+                    else:
+                        self.parse_casted_vote(author=self._author,
+                                               post_contents=self._command,
+                                               post_id=self._post_id)
 
-                    elif self._command == 'desvoto':
-                        self._victim = 'desvoto'
-                        
-                    elif self._command.startswith('voto'):
+    
+    def parse_casted_vote(self, author:str, post_contents:str, post_id:int):
+        '''
+        This function parses a vote command and retrieves author, vote type and 
+        victim.
 
-                        if self._command.endswith('no linchamiento'):
-                            self._victim = 'no_lynch'
+        Parameters:\n
+        author (string): The author of the casted vote.
+        post_contents (string): The complete vote command from get_votes_from_page
+        post_id (int): mediavida post-id of the post where the vote command was found.
 
-                        else:
-                            self._victim = self._command.split(' ')[-1]
+        Returns: None.
+        '''
 
-                       
-                    
-                    if self._victim != '': 
-                        self.vote_player(player=self._author,
-                                         victim=self._victim,
-                                         post_id=self._post_id)
+        self._victim  = ''
+        self._author  = author
+        self._command = post_contents.split(' ')
 
+        if post_contents.startswith('voto'):
 
+            if post_contents.endswith('no linchamiento'):
+                self._victim = 'no_lynch'
+            else:
+                self._victim = self._command[-1]
+            
+            if self._victim != '':
+                self.vote_player(player=self._author, victim=self._victim, post_id=post_id)
+            else:
+                logging.warning(f'Player {author} casted an empty vote at {post_id}.')
+             
+        elif post_contents.startswith('desvoto'):
+
+            # Check if a victim is named
+            if not post_contents.endswith('desvoto'):
+                self._victim = post_contents.split(' ')[-1]
+            else:
+                self._victim = 'none'
+        
+            self.unvote_player(player=self._author, victim=self._victim, post_id=post_id)
+        
 
     def vote_count_request(self, player: str, post_id: int):
         '''
@@ -499,12 +523,9 @@ class MafiaBot:
                 else:
                     self._player_max_votes = self.vote_rights.loc[player, 'allowed_votes']
 
-                self._player_current_votes = len(self.vote_table[self.vote_table['voted_by'] == player])
+                self._player_current_votes = self.get_player_current_votes(player)
             
-                if victim == 'desvoto' and self._player_current_votes > 0:
-                    self._is_valid_vote = True
-            
-                elif victim  == 'no_lynch' and self._player_current_votes < self._player_max_votes:
+                if victim  == 'no_lynch' and self._player_current_votes < self._player_max_votes:
                     self._is_valid_vote  = True
             
                 elif victim in self.player_list:
@@ -524,6 +545,42 @@ class MafiaBot:
         return self._is_valid_vote
 
     
+    def is_valid_unvote(self, player:str, victim:str) -> bool:
+        '''
+        Evaluates if a given unvote is valid. A valid unvote has to fulfill the following
+        requirements:
+
+        a) The player has previously casted a voted to victim or has at least one casted vote if victim = 'none'
+        b) Majority has not been reached.
+
+        Parameters:\n 
+        player (str): The player casting the vote.
+        victim (str): The player who receives the unvote the vote. Can be none for a general unvote.\n
+        Returns:\n 
+        True if the unvote is valid, False otherwise.
+        '''
+
+        self._is_valid_unvote = False
+
+        if not self.majority_reached:
+
+            if player in self.vote_table['voted_by'].values:
+
+                if self.get_player_current_votes(player) >  0:
+
+                    if victim == 'none':
+                        self._is_valid_unvote = True
+                    
+                    else: 
+                        # Get  all casted voted to said victim by player
+                        self._casted_votes = self.vote_table[(self.vote_table['player'] == victim ) & (self.vote_table['voted_by'] == player)]
+
+                        if len(self._casted_votes) > 0: 
+                            self._is_valid_unvote = True
+    
+        return self._is_valid_unvote
+
+
     def is_lynched(self, victim:str) -> bool:
         '''
         Checks if a given player has received enough votes to be lynched. This
@@ -556,33 +613,69 @@ class MafiaBot:
         player (str): The player who casts the vote.\n
         victim (str): The player who receives the vote. Can be set to "desvoto" to remove a previously casted voted by player.\n
         post_id  (int): The post ID where the vote was casted.\n
-        Returns:\n 
-        True if the player should be lynched.  False otherwise.
+        Returns: None.
         '''
 
         if self.is_valid_vote(player, victim):
-
-            if victim == 'desvoto':
-                self._old_vote = self.vote_table[self.vote_table['voted_by'] == player].index[0]
-                self.vote_table.drop(self._old_vote, axis=0, inplace=True)
-
-                logging.info(f'Player {player} unvoted at {post_id}')
             
-            else:
-               
-                self.vote_table  = self.vote_table.append({'player': victim,
-                                                           'voted_by': player,
-                                                           'post_id': post_id},
-                                                           ignore_index=True)
-                
-                logging.info(f'{player} voted {victim} at {post_id}')
 
-                #Check if we have reached majority
-                if self.is_lynched(victim):
-                    self.lynch_player(victim, post_id)   
+               
+            self.vote_table  = self.vote_table.append({'player': victim,
+                                                        'voted_by': player,
+                                                        'post_id': post_id},
+                                                        ignore_index=True)
+                
+            #Check if we have reached majority
+            if self.is_lynched(victim):
+                self.lynch_player(victim, post_id)   
+        
+            logging.info(f'{player} voted {victim} at {post_id}')
 
         else:
             logging.warning(f'Invalid vote by {player} at {post_id}. They voted {victim}')
+
+
+    def unvote_player(self, player:str, victim:str, post_id:int):
+        '''
+        This function removes a given vote from the vote table. They are always
+        removed from the oldest to the newest casted vote. 
+
+        Parameters:\n
+        player (str): The player who removes the vote.\n
+        victim (str): The unvoted player. Can be set to "none" to remove the oldest vote no matter the victim.\n
+        post_id  (int): The post ID where the unvote was casted.\n
+        Returns: None.
+        '''
+
+        if self.is_valid_unvote(player, victim):
+
+            if victim == 'none': 
+                self._old_vote = self.vote_table[self.vote_table['voted_by'] == player].index[0]
+            else:
+                self._old_vote = self.vote_table[(self.vote_table['player'] == victim) & (self.vote_table['voted_by'] == player)].index[0]
+        
+            ## Always remove the oldest vote casted
+            self.vote_table.drop(self._old_vote, axixs=0, inplace=True)
+        
+            logging.info(f'{player} unvoted {victim}.')
+
+        else:
+            logging.warning(f'Invalid unvote by {player} at {post_id}. They unvoted {victim}')
+        
+
+    def get_player_current_votes(self, player:str) -> int:
+        '''
+        Counts current casted votes by a given player.
+
+        Parameters:\n
+        player (str): The player whose votes are to be counted.
+
+        Returns:\n
+        An int of the valid votes casted by said player.
+        '''
+        self._player_current_votes = len(self.vote_table[self.vote_table['voted_by'] == player])
+
+        return self._player_current_votes
 
 
     def lynch_player(self, victim:str, post_id:int):
@@ -657,6 +750,7 @@ class MafiaBot:
         self._translat_votetable['voted_by'] = self._translat_votetable['voted_by'].map(self.real_names)
 
         return self._translat_votetable
+
 
     def get_vote_majority(self) -> int:
         '''
