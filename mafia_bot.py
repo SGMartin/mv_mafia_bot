@@ -655,7 +655,7 @@ class MafiaBot:
                 self._old_vote = self.vote_table[(self.vote_table['player'] == victim) & (self.vote_table['voted_by'] == player)].index[0]
         
             ## Always remove the oldest vote casted
-            self.vote_table.drop(self._old_vote, axixs=0, inplace=True)
+            self.vote_table.drop(self._old_vote, axis=0, inplace=True)
         
             logging.info(f'{player} unvoted {victim}.')
 
