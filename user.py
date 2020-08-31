@@ -86,9 +86,15 @@ class User:
         return self._message
 
 
-    def generate_string_from_vote_count(self, vote_count: pd.DataFrame):
+    def generate_string_from_vote_count(self, vote_table: pd.DataFrame):
 
-        self._vote_count = vote_count['player'].value_counts().sort_values(ascending=False)
+        self._vote_table = vote_table
+
+        ## Supersede the player who voted (voted_by) by its alias if they are not the same
+        self._prioritise_alias = self._vote_table['voted_by'].str.lower() != self._vote_table['vote_alias'].str.lower()
+        self._vote_table.loc[self._prioritise_alias, 'voted_by'] = self._vote_table.loc[self._prioritise_alias, 'vote_alias']
+
+        self._vote_count = self._vote_table['player'].value_counts().sort_values(ascending=False)
         self._vote_rank = ''
 
         for i in range(0, len(self._vote_count)):
@@ -96,7 +102,7 @@ class User:
             self._player = self._vote_count.index[i]
             self._votes  = self._vote_count[i]
             
-            self._voters  = vote_count.loc[vote_count['player'] == self._player, 'voted_by'].tolist()
+            self._voters  = self._vote_table.loc[self._vote_table['player'] == self._player, 'voted_by'].tolist()
             self._voters  = ', '.join(self._voters)
 
             if self._player == 'no_lynch':
@@ -118,7 +124,7 @@ class User:
         else:
             self._announcement = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}, se linchará a {victim}! ### \n'
 
-        self._final_votecount = self.generate_string_from_vote_count(vote_count=last_votecount)
+        self._final_votecount = self.generate_string_from_vote_count(vote_table=last_votecount)
 
         self._no_votes = f'**Ya no se admiten más votos.** \n \n'
         self._footer   = f'@{self.game_master}, el pueblo ha hablado. \n'

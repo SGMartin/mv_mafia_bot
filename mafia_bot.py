@@ -56,6 +56,7 @@ class MafiaBot:
 
         self.run(loop_waittime_seconds)
     
+    
     def run(self, update_tick:int):
         '''
         Main bot loop. Called in class constructor. It iterates each N seconds,
@@ -72,7 +73,10 @@ class MafiaBot:
         while(True):
 
             # Initialize empty vote table
-            self.vote_table = pd.DataFrame(columns=['player', 'voted_by', 'post_id'])
+            self.vote_table = pd.DataFrame(columns=['player',
+                                                    'voted_by',
+                                                    'post_id',
+                                                    'vote_alias'])
 
             if self.is_day_phase(): # Daytime, count
 
@@ -347,21 +351,36 @@ class MafiaBot:
         '''
 
         self._victim  = ''
-        self._author  = author
+        self._author, self._alias  = author, author
         self._command = post_contents.split(' ')
 
         if post_contents.startswith('voto'):
 
-            if post_contents.endswith('no linchamiento'):
-                self._victim = 'no_lynch'
+            if 'como' in self._command and self._author == self.game_master.lower(): ## The GM is trying to vote with alias
+                
+                self._alias  = self._command[-1]
+
+                if 'no linchamiento' in post_contents:
+                    self._victim = 'no_lynch'
+                else:
+                    self._victim = self._command[-3] ##Voto(0) blabla blabla SamaWoodo (-3) como (-2) alias (-1)
+
             else:
-                self._victim = self._command[-1]
+
+                if post_contents.endswith('no linchamiento'):
+                    self._victim = 'no_lynch'
+                else:
+                    self._victim = self._command[-1]
             
             if self._victim != '':
-                self.vote_player(player=self._author, victim=self._victim, post_id=post_id)
+
+                self.vote_player(player=self._author,
+                                 victim=self._victim,
+                                 post_id=post_id,
+                                 vote_alias=self._alias)
             else:
-                logging.warning(f'Player {author} casted an empty vote at {post_id}.')
-             
+                logging.warning(f'Player {self._author} casted an empty vote at {post_id}.')
+
         elif post_contents.startswith('desvoto'):
 
             # Check if a victim is named
@@ -605,7 +624,7 @@ class MafiaBot:
         return self._lynched
 
     
-    def vote_player(self, player:str, victim:str, post_id:int):
+    def vote_player(self, player:str, victim:str, post_id:int, vote_alias:str):
         '''
         This function process votes and keeps track of the vote table. Votes are added or removed based on the victim. 
 
@@ -619,10 +638,10 @@ class MafiaBot:
         if self.is_valid_vote(player, victim):
             
 
-               
             self.vote_table  = self.vote_table.append({'player': victim,
                                                         'voted_by': player,
-                                                        'post_id': post_id},
+                                                        'post_id': post_id,
+                                                        'vote_alias': vote_alias},
                                                         ignore_index=True)
                 
             #Check if we have reached majority
@@ -748,7 +767,7 @@ class MafiaBot:
 
         self._translat_votetable['player']   = self._translat_votetable['player'].map(self.real_names)
         self._translat_votetable['voted_by'] = self._translat_votetable['voted_by'].map(self.real_names)
-
+        
         return self._translat_votetable
 
 
