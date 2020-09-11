@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 
 import user
+import vote_count
 
 class MafiaBot:
 
@@ -28,21 +29,7 @@ class MafiaBot:
 
         self.player_list              = []
 
-        # Load vote rights table
-        self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
-
-        # use lowercase player names as keys, player column as true names
-        self.vote_rights.index = self.vote_rights['player'].str.lower()
-
-        # We'll use this table as the master table for real names
-        self.real_names = self.vote_rights['player'].to_dict()
-        self.real_names[self.game_master.lower()] = 'GM'
-
-        self.vote_requests = pd.DataFrame({'player' : self.vote_rights['player'],
-                                          'max_vote_requests': self.vote_rights['allowed_vote_requests'],
-                                          'vote_requested':0})
-
-
+       
         self.majority_reached         = False
 
         # Temporal fix until proper votecount request queue is implemented
@@ -72,11 +59,7 @@ class MafiaBot:
 
         while(True):
 
-            # Initialize empty vote table
-            self.vote_table = pd.DataFrame(columns=['player',
-                                                    'voted_by',
-                                                    'post_id',
-                                                    'vote_alias'])
+            self.VoteCount = vote_count.VoteCount(self.game_master)
 
             if self.is_day_phase(): # Daytime, count
 
@@ -173,7 +156,6 @@ class MafiaBot:
                         #TODO: We should start thinking about an standalone method here
                         if self.current_day_start_post < int(self._post['data-num']):
                             self.majority_reached = False
-                            self.vote_requests['vote_requested'] = 0
 
                         self.current_day_start_post = int(self._post['data-num'])
                         self._is_day_phase = True
@@ -321,20 +303,21 @@ class MafiaBot:
             self._post_content = self._post.find('div', class_ = 'post-contents')
             self._post_commands = self._post_content.findAll('h4')
 
-            if self._post_id > self.current_day_start_post:
+            if self._author in self.player_list or self._author == self.game_master.lower():
 
-                for self._command in self._post_commands:
+                if self._post_id > self.current_day_start_post:
+
+                    for self._command in self._post_commands:
  
-                    self._command = self._command.text.lower()
+                        self._command = self._command.text.lower()
                     
-                    if self._command == 'recuento':
-
-                        self.vote_count_request(player=self._author,
-                                                post_id=self._post_id)
-                    else:
-                        self.parse_casted_vote(author=self._author,
-                                               post_contents=self._command,
-                                               post_id=self._post_id)
+                        if self._command == 'recuento':
+                            self.vote_count_request(player=self._author,
+                                                    post_id=self._post_id)
+                        else:
+                            self.parse_casted_vote(author=self._author,
+                                                   post_contents=self._command,
+                                                   post_id=self._post_id)
 
     
     def parse_casted_vote(self, author:str, post_contents:str, post_id:int):
@@ -374,10 +357,13 @@ class MafiaBot:
             
             if self._victim != '':
 
-                self.vote_player(player=self._author,
-                                 victim=self._victim,
-                                 post_id=post_id,
-                                 vote_alias=self._alias)
+                self.VoteCount.vote_player(author=self._author,
+                                           victim=self._victim,
+                                           post_id=post_id,
+                                           vote_alias=self._alias)
+
+                if self.is_lynched(self._victim):
+                    self.lynch_player(self._victim, post_id)   
             else:
                 logging.warning(f'Player {self._author} casted an empty vote at {post_id}.')
 
@@ -389,7 +375,9 @@ class MafiaBot:
             else:
                 self._victim = 'none'
         
-            self.unvote_player(player=self._author, victim=self._victim, post_id=post_id)
+            self.VoteCount.unvote_player(author=self._author,
+                                         victim=self._victim,
+                                         post_id=post_id)
         
 
     def vote_count_request(self, player: str, post_id: int):
@@ -515,91 +503,6 @@ class MafiaBot:
                 return self._player_list
 
 
-    def is_valid_vote(self, player:str, victim:str) -> bool:
-        '''
-        Evaluates if a given vote is valid. A valid vote has to fulfill the following
-        requirements:
-
-        a) The victim can be voted: alive, playing and set as vote candidate in the vote rights table.\n
-        b) The voting player must have casted less votes than their current limit.
-
-        Parameters:\n 
-        player (str): The player casting the vote.
-        victim (str): The player who receives the vote.\n
-        Returns:\n 
-        True if the vote is valid, False otherwise.
-        '''
-
-        self._is_valid_vote = False
-
-        if not self.majority_reached:
-
-            if player in self.player_list or player == self.game_master.lower():
-
-                if player == self.game_master.lower():
-                    self._player_max_votes = 999
-
-                else:
-                    self._player_max_votes = self.vote_rights.loc[player, 'allowed_votes']
-
-                self._player_current_votes = self.get_player_current_votes(player)
-            
-                if victim  == 'no_lynch' and self._player_current_votes < self._player_max_votes:
-                    self._is_valid_vote  = True
-            
-                elif victim in self.player_list:
-
-                    if victim in self.vote_rights.index:
-
-                        if self.vote_rights.loc[victim, 'can_be_voted'] == 1:
-
-                            if self._player_current_votes < self._player_max_votes:
-
-                                self._is_valid_vote = True
-                    else:
-                        logging.warning(f'Player {victim} is not on the vote rights table.')
-        else:
-            logging.info(f'Rejecting vote from {player} to {victim} because majority was already reached')
-        
-        return self._is_valid_vote
-
-    
-    def is_valid_unvote(self, player:str, victim:str) -> bool:
-        '''
-        Evaluates if a given unvote is valid. A valid unvote has to fulfill the following
-        requirements:
-
-        a) The player has previously casted a voted to victim or has at least one casted vote if victim = 'none'
-        b) Majority has not been reached.
-
-        Parameters:\n 
-        player (str): The player casting the vote.
-        victim (str): The player who receives the unvote the vote. Can be none for a general unvote.\n
-        Returns:\n 
-        True if the unvote is valid, False otherwise.
-        '''
-
-        self._is_valid_unvote = False
-
-        if not self.majority_reached:
-
-            if player in self.vote_table['voted_by'].values:
-
-                if self.get_player_current_votes(player) >  0:
-
-                    if victim == 'none':
-                        self._is_valid_unvote = True
-                    
-                    else: 
-                        # Get  all casted voted to said victim by player
-                        self._casted_votes = self.vote_table[(self.vote_table['player'] == victim ) & (self.vote_table['voted_by'] == player)]
-
-                        if len(self._casted_votes) > 0: 
-                            self._is_valid_unvote = True
-    
-        return self._is_valid_unvote
-
-
     def is_lynched(self, victim:str) -> bool:
         '''
         Checks if a given player has received enough votes to be lynched. This
@@ -615,88 +518,15 @@ class MafiaBot:
         self._lynched = False
 
         # Count this player votes
-        self._lynch_votes = len(self.vote_table[self.vote_table['player'] == victim])
-        self._player_majority = self.get_vote_majority() + self.vote_rights.loc[victim, 'mod_to_lynch']
-
+        self._lynch_votes     = self.VoteCount.get_victim_current_votes(victim)
+        self._player_majority = self.get_vote_majority() + self.VoteCount.get_player_mod_to_lynch(victim)
+        
         if self._lynch_votes >= self._player_majority:
             self._lynched = True
         
         return self._lynched
 
     
-    def vote_player(self, player:str, victim:str, post_id:int, vote_alias:str):
-        '''
-        This function process votes and keeps track of the vote table. Votes are added or removed based on the victim. 
-
-        Parameters:\n
-        player (str): The player who casts the vote.\n
-        victim (str): The player who receives the vote. Can be set to "desvoto" to remove a previously casted voted by player.\n
-        post_id  (int): The post ID where the vote was casted.\n
-        Returns: None.
-        '''
-
-        if self.is_valid_vote(player, victim):
-            
-
-            self.vote_table  = self.vote_table.append({'player': victim,
-                                                        'voted_by': player,
-                                                        'post_id': post_id,
-                                                        'vote_alias': vote_alias},
-                                                        ignore_index=True)
-                
-            #Check if we have reached majority
-            if self.is_lynched(victim):
-                self.lynch_player(victim, post_id)   
-        
-            logging.info(f'{player} voted {victim} at {post_id}')
-
-        else:
-            logging.warning(f'Invalid vote by {player} at {post_id}. They voted {victim}')
-
-
-    def unvote_player(self, player:str, victim:str, post_id:int):
-        '''
-        This function removes a given vote from the vote table. They are always
-        removed from the oldest to the newest casted vote. 
-
-        Parameters:\n
-        player (str): The player who removes the vote.\n
-        victim (str): The unvoted player. Can be set to "none" to remove the oldest vote no matter the victim.\n
-        post_id  (int): The post ID where the unvote was casted.\n
-        Returns: None.
-        '''
-
-        if self.is_valid_unvote(player, victim):
-
-            if victim == 'none': 
-                self._old_vote = self.vote_table[self.vote_table['voted_by'] == player].index[0]
-            else:
-                self._old_vote = self.vote_table[(self.vote_table['player'] == victim) & (self.vote_table['voted_by'] == player)].index[0]
-        
-            ## Always remove the oldest vote casted
-            self.vote_table.drop(self._old_vote, axis=0, inplace=True)
-        
-            logging.info(f'{player} unvoted {victim}.')
-
-        else:
-            logging.warning(f'Invalid unvote by {player} at {post_id}. They unvoted {victim}')
-        
-
-    def get_player_current_votes(self, player:str) -> int:
-        '''
-        Counts current casted votes by a given player.
-
-        Parameters:\n
-        player (str): The player whose votes are to be counted.
-
-        Returns:\n
-        An int of the valid votes casted by said player.
-        '''
-        self._player_current_votes = len(self.vote_table[self.vote_table['voted_by'] == player])
-
-        return self._player_current_votes
-
-
     def lynch_player(self, victim:str, post_id:int):
         '''
         When this function is called, a new User object is built to push a vote
@@ -711,15 +541,14 @@ class MafiaBot:
 
         self.majority_reached        = True
 
-
         self._user = user.User(thread_id=self.thread_id, 
                                thread_url= self.game_thread,
                                bot_id= self.bot_ID,
                                bot_password=self.bot_password,
                                game_master= self.game_master)
         
-        self._user.push_lynch(last_votecount=self.translate_votecount_names(),
-                              victim=self.real_names[victim],
+        self._user.push_lynch(last_votecount=self.VoteCount.get_vote_table(),
+                              victim=self.VoteCount.get_real_name(victim),
                               post_id=post_id)
 
     
@@ -739,36 +568,12 @@ class MafiaBot:
                               bot_password=self.bot_password,
                               game_master=self.game_master)
                     
-        self.User.push_votecount(vote_count=self.translate_votecount_names(),
+        self.User.push_votecount(vote_count=self.VoteCount.get_vote_table(),
                                  alive_players=len(self.player_list),
                                  vote_majority=self.get_vote_majority(),
                                  post_id=self.last_thread_post)
 
         del self.User
-
-
-    def translate_votecount_names(self):
-        '''
-        This function translates lowercased player names to their actual mediavida
-        names for a fancier vote count post. To do so, it relies on the vote_rights
-        table, which features a player column. A dictionary is built in which
-        the table index is the lowercased player name and the dict. values are taken
-        from the player column. 
-
-        The vote table names are then mapped using this dictionary.
-
-        Parameters: None \n
-        Returns: 
-        A vote table pandas object in which lowercase names have been mapped to 
-        their real mediavida names.
-        '''
-
-        self._translat_votetable = self.vote_table
-
-        self._translat_votetable['player']   = self._translat_votetable['player'].map(self.real_names)
-        self._translat_votetable['voted_by'] = self._translat_votetable['voted_by'].map(self.real_names)
-        
-        return self._translat_votetable
 
 
     def get_vote_majority(self) -> int:
