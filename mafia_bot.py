@@ -341,7 +341,7 @@ class MafiaBot:
 
         self._victim  = ''
         self._author, self._alias  = author, author
-        self._command = post_contents.split(' ')
+        self._command = post_contents.rstrip('.').split(' ')
 
         if post_contents.startswith('voto'):
 
@@ -355,7 +355,6 @@ class MafiaBot:
                     self._victim = self._command[-3] ##Voto(0) blabla blabla SamaWoodo (-3) como (-2) alias (-1)
 
             else:
-
                 if post_contents.endswith('no linchamiento'):
                     self._victim = 'no_lynch'
                 else:
@@ -504,7 +503,7 @@ class MafiaBot:
                 self._players = self._post.find('ol').find_all('a')
 
                 for self._player in self._players:
-                    self._player_list.append(self._player.contents[0].lower())
+                    self._player_list.append(self._player.contents[0].lower().strip())
 
                 return self._player_list
 
