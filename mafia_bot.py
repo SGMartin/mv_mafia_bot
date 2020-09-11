@@ -360,7 +360,7 @@ class MafiaBot:
                 else:
                     self._victim = self._command[-1]
             
-            if self._victim != '':
+            if self._victim != '' and self._victim in self.player_list:
 
                 self.VoteCount.vote_player(author=self._author,
                                            victim=self._victim,
@@ -370,7 +370,7 @@ class MafiaBot:
                 if self.is_lynched(self._victim):
                     self.lynch_player(self._victim, post_id)   
             else:
-                logging.warning(f'Player {self._author} casted an empty vote at {post_id}.')
+                logging.warning(f'Player {self._author} casted an invalid vote at {post_id}. They voted {self._victim}')
 
         elif post_contents.startswith('desvoto'):
 
