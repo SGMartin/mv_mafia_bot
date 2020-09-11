@@ -3,6 +3,7 @@ import math
 import requests
 import time
 import re
+import sys
 
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -145,8 +146,13 @@ class MafiaBot:
 
                 for self._pday in self._headers:
                     
+                    self._game_end      = re.findall('^Final de la partida', self._pday.text)
                     self._phase_end     = re.findall('^Final del día [0-9]*', self._pday.text)
                     self._phase_start   = re.findall('^Día [0-9]*', self._pday.text)
+
+                    #TODO: this is a stub. Build something nicer.
+                    if self._game_end:
+                        sys.exit()
 
                     if self._phase_end:
                       return self._is_day_phase
