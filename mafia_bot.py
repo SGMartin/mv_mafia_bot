@@ -504,7 +504,7 @@ class MafiaBot:
                 self._players = self._post.find('ol').find_all('a')
 
                 for self._player in self._players:
-                    self._player_list.append(self._player.contents[0].lower())
+                    self._player_list.append(self._player.contents[0].lower().strip())
 
                 return self._player_list
 
