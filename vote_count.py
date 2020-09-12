@@ -92,6 +92,7 @@ class  VoteCount():
 
         return self.vote_rights.loc[player, 'mod_to_lynch']
 
+
     def vote_player(self, author:str, victim:str, post_id:int, vote_alias:str):
 
         if self.is_valid_vote(author, victim):
