@@ -18,6 +18,7 @@ class Config:
         self.mediavida_pwd      = ''
         self.update_time        = 60
         self.posts_until_update = 30
+        self.votes_until_update = 10
 
         self._raw_config  = self._load_file(file_to_load)
 
