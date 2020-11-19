@@ -14,6 +14,7 @@ class Config:
         '''
         self.game_thread        = ''
         self.game_master        = ''
+        self.moderators         = []
         self.mediavida_user     = ''
         self.mediavida_pwd      = ''
         self.update_time        = 60
@@ -65,6 +66,19 @@ class Config:
             
             if self.posts_until_update <= 0:
                 self.posts_until_update = -1
+
+            
+            ## Attempt to populate moderator lists
+            if pd.notna(raw_config.loc['Moderators', 'value']):
+
+                self.moderators = raw_config.loc['Moderators', 'value']
+                self.moderators = self.moderators.split(',')
+
+                ## clean up of trailing and ending whitespaces
+                self.moderators = [mod.split(' ') for mod in self.moderators]
+
+                ## just for testing:
+                print('Remove me: There are', len(self.moderators), 'coGM')
     
         except Exception:
                 logging.exception('Cannot parse config file!')
