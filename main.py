@@ -31,7 +31,8 @@ def main():
                                   bot_userID=Config.mediavida_user,
                                   bot_password=Config.mediavida_pwd,
                                   loop_waittime_seconds=Config.update_time,
-                                  post_push_interval = Config.posts_until_update)
+                                  post_push_interval = Config.posts_until_update,
+                                  moderators = Config.moderators)
                                  )
     
 
