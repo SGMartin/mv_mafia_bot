@@ -15,12 +15,13 @@ class MafiaBot:
 
     def __init__(self, game_url: str, game_master: str,
                  bot_userID:str, bot_password:str, loop_waittime_seconds:int,
-                 post_push_interval:int):
+                 post_push_interval:int, moderators: list):
 
 
         self.game_thread           = game_url
         self.thread_id             = int(game_url.split('-')[-1])
         self.game_master           = game_master
+        self.moderators            = moderators
         self.bot_ID                = bot_userID
         self.bot_password          = bot_password
         self.post_push_interval    = post_push_interval
@@ -344,7 +345,7 @@ class MafiaBot:
         self._command = post_contents.rstrip('.').split(' ')
 
         if post_contents.startswith('voto'):
-
+            
             if 'como' in self._command and self._author == self.game_master.lower(): ## The GM is trying to vote with alias
                 
                 self._alias  = self._command[-1]
@@ -385,6 +386,7 @@ class MafiaBot:
                                          post_id=post_id)
         
 
+
     def vote_count_request(self, player: str, post_id: int):
         '''
         This function is called after a possible vote count request by the game
@@ -401,8 +403,9 @@ class MafiaBot:
 
         Returns: None
         '''
-        if player == self.game_master.lower():
-
+        ## Easy way to preserve the original mod names just in case. 
+        if player == self.game_master.lower() or player in [moderator.lower() for moderator in self.moderators]:
+            
            # GM request after our last vote count
            if post_id > self.last_votecount_id:
                self.gm_vote_request = True
