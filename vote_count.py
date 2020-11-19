@@ -47,6 +47,23 @@ class  VoteCount():
         return self._translat_table
 
 
+    def player_exists(self, player:str) -> bool:
+        '''
+        Checks if a given player is in the vote_rights table. 
+
+        Parameters:
+        - player(str):  the player to check
+
+        Returns:
+            False if the player does not exists. True otherwise.
+        '''
+
+        if self.vote_rights.index.contains(lower(player)):
+            return True
+        else
+            return False
+
+
     def get_real_name(self, player:str) -> str:
 
         if player in self.vote_rights.index:
@@ -90,7 +107,11 @@ class  VoteCount():
 
     def get_player_mod_to_lynch(self, player:str) -> int:
 
-        return self.vote_rights.loc[player, 'mod_to_lynch']
+        if player_exists(player):
+            return self.vote_rights.loc[player, 'mod_to_lynch']
+        else:
+            logging.error(f'{player} is not in the vote_rights table. Returning 0')
+            return 0
 
 
     def vote_player(self, author:str, victim:str, post_id:int, vote_alias:str):
@@ -125,7 +146,11 @@ class  VoteCount():
         if player == self.game_master.lower():
             self._player_max_votes = 999
         else:
-            self._player_max_votes = self.vote_rights.loc[player, 'allowed_votes']
+            if player_exists(player):
+                self._player_max_votes = self.vote_rights.loc[player, 'allowed_votes']
+            else:
+                logging.error(f'{player} is not in the vote_rights table. Invalid vote!')
+                return False
         
         self._player_current_votes = self.get_player_current_votes(player)
 
@@ -137,6 +162,7 @@ class  VoteCount():
 
                 if self._victim_can_be_voted:
                     self._is_valid_vote = True
+
                 else:
                     logging.info(f'{player} voted non-votable player: {victim}')    
             else:
