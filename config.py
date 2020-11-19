@@ -57,6 +57,7 @@ class Config:
 
             self.update_time    = raw_config.loc['update_time_seconds', 'value']
             self.posts_until_update = raw_config.loc['push_vote_count_interval', 'value']
+            self.votes_until_update = raw.config.loc['votes_until_update', 'value']
 
             if self.update_time < 10:
                 self.update_time == 10
