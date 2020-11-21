@@ -13,18 +13,17 @@ import vote_count
 
 class MafiaBot:
 
-    def __init__(self, game_url: str, game_master: str,
-                 bot_userID:str, bot_password:str, loop_waittime_seconds:int,
-                 post_push_interval:int, moderators: list):
+    def __init__(self, config: object):
 
+        self.Config = config
 
-        self.game_thread           = game_url
-        self.thread_id             = int(game_url.split('-')[-1])
-        self.game_master           = game_master
-        self.moderators            = moderators
-        self.bot_ID                = bot_userID
-        self.bot_password          = bot_password
-        self.post_push_interval    = post_push_interval
+        self.game_thread           = self.Config.game_url
+        self.thread_id             = int(self.Config.game_url.split('-')[-1])
+        self.game_master           = self.Config.game_master
+        self.moderators            = self.Config.moderators
+        self.bot_ID                = self.Config.bot_userID
+        self.bot_password          = self.Config.bot_password
+        self.post_push_interval    = self.Config.post_push_interval
 
         self.current_day_start_post  = 1
         self.last_votecount_id       = 1

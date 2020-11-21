@@ -26,14 +26,7 @@ def main():
 
     Config = config.Config(file_to_load='config.csv')
 
-    MafiaBot = mafia_bot.MafiaBot(game_url=Config.game_thread,
-                                  game_master=Config.game_master,
-                                  bot_userID=Config.mediavida_user,
-                                  bot_password=Config.mediavida_pwd,
-                                  loop_waittime_seconds=Config.update_time,
-                                  post_push_interval = Config.posts_until_update,
-                                  moderators = Config.moderators)
-                                 )
+    MafiaBot = mafia_bot.MafiaBot(config=Config)
     
 
 if __name__ == "__main__":
