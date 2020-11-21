@@ -21,12 +21,21 @@ class Config:
         self.posts_until_update = 30
         self.votes_until_update = 10
 
-        self._raw_config  = self._load_file(file_to_load)
+        self._config_file = file_to_load
+        self._raw_config  = self._load_file(self._config_file)
 
         self._parse_config(self._raw_config)
 
         print('Configuration loaded')
         logging.info('Configuration loaded')
+
+
+    def reload_config(self):
+        '''
+        Reload the config.
+        '''
+        self._new_raw_config = self._load_file(self._config_file)
+        self._parse_config(self._new_raw_config)
 
 
     def _load_file(self, file_to_load:str) -> pd.DataFrame:
