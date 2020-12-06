@@ -13,6 +13,7 @@ class Config:
         are logged and config parameters exposed through public vars.
         '''
         self.game_thread        = ''
+        self.thread_id          = 0
         self.game_master        = ''
         self.moderators         = []
         self.mediavida_user     = ''
@@ -48,10 +49,10 @@ class Config:
                 return self._config
             except:
                 logging.critical('Could not load config file. Check the format.')
-                sys.exit('Could not load config file.')
+                sys.exit('ERROR: Could not load config file.')
         else:
             logging.critical('Cannot find config file.')
-            sys.exit('Could not find config file.')
+            sys.exit('ERROR: Could not find config file.')
 
     
     def _parse_config(self, raw_config: pd.DataFrame) -> dict:
@@ -60,18 +61,20 @@ class Config:
         are present, it will exit the bot, logging an exception.
         '''
         try:
-            self.game_thread    = raw_config.loc['game_thread', 'value'] 
-            self.game_master    = raw_config.loc['game_master', 'value']
+            self.game_thread    = raw_config.loc['game_thread', 'value']
+            self.thread_id      = int(self.game_thread.split('-')[-1])
+
+            self.game_master    = raw_config.loc['GM', 'value']
         
             self.mediavida_user = raw_config.loc['mediavida_user', 'value']
             self.mediavida_pwd  = raw_config.loc['mediavida_password', 'value']
 
-            self.update_time    = raw_config.loc['update_time_seconds', 'value']
-            self.posts_until_update = raw_config.loc['push_vote_count_interval', 'value']
-            self.votes_until_update = raw.config.loc['votes_until_update', 'value']
+            self.update_time    = int(raw_config.loc['update_time_seconds', 'value'])
+            self.posts_until_update = int(raw_config.loc['push_vote_count_interval', 'value'])
+            self.votes_until_update = int(raw_config.loc['votes_until_update', 'value'])
 
             if self.update_time < 10:
-                self.update_time == 10
+                self.update_time = 10
             
             if self.posts_until_update <= 0:
                 self.posts_until_update = -1
@@ -91,7 +94,7 @@ class Config:
     
         except Exception:
                 logging.exception('Cannot parse config file!')
-                sys.exit('Config could not be parsed')
+                sys.exit('ERROR: Config could not be parsed')
 
 
 
