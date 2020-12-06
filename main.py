@@ -102,8 +102,8 @@ def run(update_tick: int):
                 votes_since_update = len(VoteCount._vote_table[VoteCount._vote_table['post_id'] > last_votecount_id].index)
 
                 should_update =  update_thread_vote_count(last_count=last_votecount_id,
-                                                           last_post=last_thread_post,
-                                                           votes_since_update=votes_since_update)     
+                                                          last_post=last_thread_post,
+                                                          votes_since_update=votes_since_update)     
                 
                 
                 if should_update:
