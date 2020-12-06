@@ -121,8 +121,10 @@ def get_last_votecount(game_thread:str, bot_id:str) -> tuple:
     bot_pages = get_page_count_from_page(bot_posts)
 
     ## initialize values for the tuple
-    last_count_id        = 1
-    last_count_was_lynch = False 
+    last_count_id = 1
+    last_count_was_lynch = False
+
+    result = (last_count_id, last_count_was_lynch)
 
     # We'll start looping from the last page to the previous one
     for pagenum in range(bot_pages, 0, -1):
@@ -144,13 +146,15 @@ def get_last_votecount(game_thread:str, bot_id:str) -> tuple:
                 vote_count_was_lynch   = re.findall('^Recuento de votos final$', pcount.text)
 
                 if vote_count_post or vote_count_was_lynch:
+
                     if vote_count_was_lynch:
                         last_count_was_lynch = True
 
                     last_count_id = int(post['data-num'])
-                    
-    result = (last_count_id, last_count_was_lynch)                
-    return(result)
+                    result        = (last_count_id, last_count_was_lynch)
+                    return(result)
+
+    return result
 
 
 def get_last_post(game_thread) -> int:
