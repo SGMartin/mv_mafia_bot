@@ -1,7 +1,8 @@
 import logging
 
-
 import pandas as pd
+
+import modules.game_actions as gm
 
 class  VoteCount():
 
@@ -9,7 +10,7 @@ class  VoteCount():
 
         # Initialize empty vote table
         self._vote_table = pd.DataFrame(columns=['player', 'voted_by',
-                                                'post_id', 'vote_alias'])
+                                                'post_id', 'post_time', 'vote_alias'])
     
 
         # Load vote rights table
@@ -20,6 +21,7 @@ class  VoteCount():
 
         self.game_master = game_master
 
+        self.lynched_player = ''
 
     def get_vote_table(self) -> list:
         '''
@@ -58,9 +60,9 @@ class  VoteCount():
             False if the player does not exists. True otherwise.
         '''
 
-        if self.vote_rights.index.contains(lower(player)):
+        if player.lower() in self.vote_rights.index:
             return True
-        else
+        else:
             return False
 
 
@@ -107,23 +109,28 @@ class  VoteCount():
 
     def get_player_mod_to_lynch(self, player:str) -> int:
 
-        if player_exists(player):
+        if self.player_exists(player):
             return self.vote_rights.loc[player, 'mod_to_lynch']
         else:
             logging.error(f'{player} is not in the vote_rights table. Returning 0')
             return 0
 
 
-    def vote_player(self, author:str, victim:str, post_id:int, vote_alias:str):
+    def vote_player(self, action: gm.GameAction):
 
-        if self.is_valid_vote(author, victim):
-            self._append_vote(author, victim, post_id, vote_alias)
+        if self.is_valid_vote(action.author, action.victim):
+
+            self._append_vote(player=action.author,
+                              victim=action.victim,
+                              post_id=action.id,
+                              post_time=action.post_time,
+                              vote_alias=action.alias)
 
 
-    def unvote_player(self, author:str, victim:str, post_id:int):
+    def unvote_player(self, action: gm.GameAction):
 
-        if self.is_valid_unvote(author, victim):
-            self._remove_vote(author, victim, post_id)
+        if self.is_valid_unvote(action.author, action.victim):
+            self._remove_vote(action.author, action.victim)
 
 
     def is_valid_vote(self, player:str, victim:str) -> bool:
@@ -146,7 +153,7 @@ class  VoteCount():
         if player == self.game_master.lower():
             self._player_max_votes = 999
         else:
-            if player_exists(player):
+            if self.player_exists(player):
                 self._player_max_votes = self.vote_rights.loc[player, 'allowed_votes']
             else:
                 logging.error(f'{player} is not in the vote_rights table. Invalid vote!')
@@ -205,7 +212,7 @@ class  VoteCount():
         return self._is_valid_unvote
 
 
-    def _append_vote(self, player:str, victim:str, post_id:int, vote_alias:str):
+    def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, vote_alias:str):
         '''
         This function process votes and keeps track of the vote table. Votes are added or removed based on the victim. 
 
@@ -213,19 +220,21 @@ class  VoteCount():
         player (str): The player who casts the vote.\n
         victim (str): The player who receives the vote. Can be set to "desvoto" to remove a previously casted voted by player.\n
         post_id  (int): The post ID where the vote was casted.\n
+        post_time (int): Unix epoch time of the post where the vote was casted.\n
         Returns: None.
         '''
 
         self._vote_table  = self._vote_table.append({'player': victim,
                                                     'voted_by': player,
                                                     'post_id': post_id,
+                                                    'post_time': post_time,
                                                     'vote_alias': vote_alias},
                                                     ignore_index=True)
         
         logging.info(f'{player} voted {victim} at {post_id}')
 
 
-    def _remove_vote(self, player:str, victim:str, post_id:int):
+    def _remove_vote(self, player:str, victim:str):
         '''
         This function removes a given vote from the vote table. They are always
         removed from the oldest to the newest casted vote. 
@@ -233,7 +242,6 @@ class  VoteCount():
         Parameters:\n
         player (str): The player who removes the vote.\n
         victim (str): The unvoted player. Can be set to "none" to remove the oldest vote no matter the victim.\n
-        post_id  (int): The post ID where the unvote was casted.\n
         Returns: None.
         '''
 
@@ -242,7 +250,8 @@ class  VoteCount():
         else:
             self._old_vote = self._vote_table[(self._vote_table['player'] == victim) & (self._vote_table['voted_by'] == player)].index[0]
         
-            ## Always remove the oldest vote casted
-            self._vote_table.drop(self._old_vote, axis=0, inplace=True)
+        ## Always remove the oldest vote casted
+        self._vote_table.drop(self._old_vote, axis=0, inplace=True)
         
         logging.info(f'{player} unvoted {victim}.')
+    

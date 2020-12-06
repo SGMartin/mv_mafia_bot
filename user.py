@@ -9,8 +9,7 @@ import pandas as pd
 
 class User:
 
-    def  __init__(self, thread_id:int, thread_url:str, bot_id:str,
-                  bot_password:str, game_master:str):
+    def  __init__(self, config: object):
 
         
         # Load vote rights table, we need vote visibility info.
@@ -19,13 +18,13 @@ class User:
         # Attempt to log into MV with these credentials.
         #TODO: Log errors here
 
-        self.thread_url = thread_url
-        self.thread_id  = thread_id
+        self.thread_url = config.game_thread
+        self.thread_id  = config.thread_id
 
-        self.user_id    = bot_id
-        self.password   = bot_password
+        self.user_id    = config.mediavida_user
+        self.password   = config.mediavida_pwd
 
-        self.game_master = game_master
+        self.game_master = config.game_master
 
         self.browser = self.login(self.user_id, self.password)
        
@@ -79,7 +78,7 @@ class User:
 
         self._footer  = (f'_Con {alive_players}  jugadores vivos, la mayoría se alcanza con {vote_majority} votos._ \n')
         self._updated = (f'_Actualizado hasta el mensaje: {post_id}._ \n \n')
-        self._bot_ad  = "**Soy un bot de recuento automático. Por favor, no me cites _¡N'wah!_** \n"
+        self._bot_ad  = "**Soy un bot de recuento automático BETA. Por favor, no me cites _¡N'wah!_** \n"
 
         self._message  = self._header + self._votes_rank + '\n' + self._footer + self._updated + self._bot_ad
 
