@@ -78,7 +78,7 @@ class User:
 
         self._footer  = (f'_Con {alive_players}  jugadores vivos, la mayoría se alcanza con {vote_majority} votos._ \n')
         self._updated = (f'_Actualizado hasta el mensaje: {post_id}._ \n \n')
-        self._bot_ad  = "**Soy un bot de recuento automático BETA. Por favor, no me cites _¡N'wah!_** \n"
+        self._bot_ad  = "**Soy un bot de recuento automático. Por favor, no me cites _¡N'wah!_** \n"
 
         self._message  = self._header + self._votes_rank + '\n' + self._footer + self._updated + self._bot_ad
 
