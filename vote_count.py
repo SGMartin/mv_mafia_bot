@@ -6,7 +6,7 @@ import modules.game_actions as gm
 
 class  VoteCount():
 
-    def __init__(self, game_master):
+    def __init__(self, staff:list, day_start_post:int):
 
         # Initialize empty vote table
         self._vote_table = pd.DataFrame(columns=['player', 'voted_by',
@@ -20,7 +20,7 @@ class  VoteCount():
         # use lowercase player names as keys, player column as true names
         self.vote_rights.index = self.vote_rights['player'].str.lower()
 
-        self.game_master = game_master
+        self.staff = staff
 
         self.lynched_player = ''
 
@@ -42,7 +42,10 @@ class  VoteCount():
         '''
 
         self._real_names = self.vote_rights['player'].to_dict()
-        self._real_names[self.game_master.lower()] = 'GM'
+  
+        self._staff_to_gm = {self._staff.lower(): 'GM' for self._staff in self.staff}
+
+        self._real_names.update(self._staff_to_gm)
 
         self._translat_table = self._vote_table
         self._translat_table['player'] = self._translat_table['player'].map(self._real_names)
@@ -152,7 +155,7 @@ class  VoteCount():
 
         self._is_valid_vote = False
 
-        if player == self.game_master.lower():
+        if player in self.staff:
             self._player_max_votes = 999
         else:
             if self.player_exists(player):
