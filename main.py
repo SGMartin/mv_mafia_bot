@@ -151,7 +151,7 @@ def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:i
 
     return (vote_update |  post_update)
 
-
+#TODO: Handle actual permissions without a giant if/else
 def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
     '''
     player_list: A list of alive players. Only moderators, the GM and alive
@@ -188,6 +188,12 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
 
             elif game_action.type == actions.Action.unvote:
                 vcount.unvote_player(action=game_action)
+            
+            elif game_action.type == actions.Action.replace_player and game_action.author in staff:
+                vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
+               
+
+
     
 
 def get_vote_majority() -> int:

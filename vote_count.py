@@ -214,6 +214,24 @@ class  VoteCount():
         return self._is_valid_unvote
 
 
+    def replace_player(self, replaced:str, replaced_by:str):
+        '''
+        STUB
+        '''
+        if self.player_exists(player=replaced):
+
+            ## Update the votetable. This is run-safe.
+            self._vote_table.loc[self._vote_table['player'] == replaced, 'player'] = replaced_by
+            self._vote_table.loc[self._vote_table['voted_by'] == replaced, 'voted_by'] = replaced_by
+
+            ## Update the vote rights, do not edit it. It would invalidate the votes casted to the replaced
+            ## player on the next run.
+            if not self.player_exists(player=replaced_by):
+                self._append_to_vote_rights(player=replaced_by, based_on_player=replaced)
+        else:
+            logging.warning(f'Attempting to replace unknown player {replaced} with {replaced_by}')
+
+
     def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, vote_alias:str):
         '''
         This function process votes and keeps track of the vote table. Votes are added or removed based on the victim. 
@@ -266,3 +284,26 @@ class  VoteCount():
         '''
         self._vote_history = self._vote_history.append(self._vote_table.tail(1),
                                                        ignore_index=True)
+
+
+    def _append_to_vote_rights(self, player:str, based_on_player:str):
+        '''
+
+        '''
+        ## Get the rights reg. to base the new entry on
+        self._old_player = self.vote_rights.loc[based_on_player].to_dict()
+
+        # Change the player name
+        self._old_player['player'] = player
+
+        # Create a 1row dataframe whose index is the lowercased player name
+        self._new_vote_rights = pd.DataFrame(self._old_player, index=[player.lower()])
+
+        # Append it to the end of the vote rights table
+        self.vote_rights = self.vote_rights.append(self._new_vote_rights)
+
+        # Just in case the bot closes, let's update the vote_rights. 
+        #TODO: Find  a better way to do this. 
+
+        logging.info(f'Updated vote_rights.csv with {player}')
+        self.vote_rights.to_csv('vote_config.csv', sep=',', index=False, header=True)
