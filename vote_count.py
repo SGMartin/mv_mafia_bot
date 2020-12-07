@@ -12,6 +12,7 @@ class  VoteCount():
         self._vote_table = pd.DataFrame(columns=['player', 'voted_by',
                                                 'post_id', 'post_time', 'vote_alias'])
     
+        self._vote_history = self._vote_table.copy()
 
         # Load vote rights table
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
@@ -22,6 +23,7 @@ class  VoteCount():
         self.game_master = game_master
 
         self.lynched_player = ''
+
 
     def get_vote_table(self) -> list:
         '''
@@ -231,6 +233,7 @@ class  VoteCount():
                                                     'vote_alias': vote_alias},
                                                     ignore_index=True)
         
+        self._update_vote_history()
         logging.info(f'{player} voted {victim} at {post_id}')
 
 
@@ -255,3 +258,11 @@ class  VoteCount():
         
         logging.info(f'{player} unvoted {victim}.')
     
+
+    def _update_vote_history(self):
+        '''
+        This function copies the last appended row of the vote_table to  the
+        vote history table.
+        '''
+        self._vote_history = self._vote_history.append(self._vote_table.tail(1),
+                                                       ignore_index=True)
