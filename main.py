@@ -19,6 +19,7 @@ def main():
     global majority_reached
     global player_list
     global settings
+    global staff
 
     ### SETUP UP PROGRAM LEVEL LOGGER ###
     logger = logging.getLogger("mafia_bot")
@@ -36,6 +37,10 @@ def main():
     settings           = config.Config(file_to_load='config.csv')
     majority_reached   =  False
     
+    ## DEFINE STAFF MEMBERS ##
+    staff = list(map(str.lower, settings.moderators))
+    staff.append(settings.game_master.lower())
+
     run(settings.update_time)
 
 
@@ -43,7 +48,8 @@ def run(update_tick: int):
     '''
     Main bot loop. It iterates each N seconds, as defined by the config file. 
     For each iteration, it parses the game thread if we are on day phase, 
-    then counts all the votes and decide if a new vote count should be pushed.
+    then collects and resolves all the game actions and decide 
+    if a new vote count should be pushed.
 
     Parameters: 
     update_tick (int): Seconds to pass between bot iterations.
@@ -51,6 +57,8 @@ def run(update_tick: int):
     Returns: None
     '''
     while(True):
+
+        global player_list
 
         update_tick     = settings.update_time
 
@@ -61,10 +69,11 @@ def run(update_tick: int):
 
 
             current_day_start_post = game_status[1]
-            VoteCount              = vote_count.VoteCount(settings.game_master)
+            VoteCount              = vote_count.VoteCount(staff=staff,
+                                                          day_start_post=current_day_start_post)
 
             print('We are on day time!')
-            global player_list
+
             player_list    = tr.get_player_list(game_thread=settings.game_thread,
                                                 start_day_post_id=current_day_start_post)
 
@@ -138,7 +147,6 @@ def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:i
     Returns:
     True/False (bool): Whether to push a new vote count.
     '''
-    global settings
 
     post_update = False
     vote_update = False
@@ -151,6 +159,7 @@ def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:i
 
     return (vote_update |  post_update)
 
+
 #TODO: Handle actual permissions without a giant if/else
 def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
     '''
@@ -162,11 +171,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
     queue: A list of game actions.\n
     vcount: The current Vote Count.\n
     '''
-    global player_list
 
-    staff = list(map(str.lower, settings.moderators))
-    staff.append(settings.game_master.lower())
-    
     allowed_actors      = player_list + staff
 
     for game_action in queue:
@@ -193,9 +198,6 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
                 vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
                
 
-
-    
-
 def get_vote_majority() -> int:
     '''
     Calculates the amount of votes necessary to reach an absolute majority
@@ -205,7 +207,6 @@ def get_vote_majority() -> int:
     Returns: \n
     majority (int): The absolute majority of votes required  to lynch a player.
     '''
-    global player_list
 
     if (len(player_list) % 2) == 0:
         majority = math.ceil(len(player_list) / 2) + 1
@@ -250,8 +251,6 @@ def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
     last_parsed_post: Last post parsed by the bot.\n
     Returns: None
     '''
-    global settings 
-    global player_list
 
     User = user.User(config=settings)
                     
@@ -275,7 +274,6 @@ def lynch_player(vote_table: pd.DataFrame, victim:str, post_id:int):
         post_id  (int): The post ID with the vote that triggered the lynch.\n
         Returns: None
         '''
-        global settings
 
         User = user.User(config=settings)
 
