@@ -3,6 +3,7 @@ import logging
 import math
 import os.path
 import time
+import sys
 
 import pandas as pd
 
@@ -114,7 +115,6 @@ def run(update_tick: int):
                                                           last_post=last_thread_post,
                                                           votes_since_update=votes_since_update)     
                 
-                
                 if should_update:
                     logging.info('Pushing a new votecount')
                     push_vote_count(vote_table=VoteCount.get_vote_table(),
@@ -123,12 +123,21 @@ def run(update_tick: int):
                     logging.info('Recent votecount detected. ')
                 
             else:
-                logging.info('Majority already reached. Skipping...')
-                    
-        else:
+                logging.info('Majority already reached. Skipping...')   
+
+        elif game_status[0]  == stages.Stage.Night:
+
             logging.info('Night phase detected. Skipping...')
             print('We are on night phase!')
+
+        #TODO: Exit routine here
+        elif game_status[0] == stages.Stage.End:
             
+            print('Game ended!')
+            logging.info(f'Game ended. Exiting now')
+            time.sleep(5)
+            sys.exit()
+
         logging.info(f'Sleeping for {update_tick} seconds.')  
 
         print(f'Sleeping for {update_tick} seconds.')
