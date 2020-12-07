@@ -173,7 +173,6 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
 
         if game_action.author in allowed_actors:
 
-            #TODO: LYNCH CODE HERE
             if game_action.type == actions.Action.vote:
 
                 vcount.vote_player(action=game_action)
@@ -182,6 +181,10 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
 
                     global majority_reached
                     majority_reached = True
+
+                    lynch_player(vote_table=vcount.get_vote_table(),
+                                 victim=game_action.victim,
+                                 post_id=game_action.post_id)
 
             elif game_action.type == actions.Action.unvote:
                 vcount.unvote_player(action=game_action)
@@ -228,7 +231,6 @@ def is_lynched(victim:str, vcount: vote_count.VoteCount) -> bool:
         lynched = True
         
     return lynched
-
 
     
 def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
