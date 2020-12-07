@@ -6,3 +6,4 @@ class Action(enum.Enum):
     replace       = 'reemplazo'
     unknown       = 'unknown'
     request_count = 'recuento'
+    replace_player = 'reemplazo'
