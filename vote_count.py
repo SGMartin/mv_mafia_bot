@@ -4,7 +4,7 @@ import pandas as pd
 
 import modules.game_actions as gm
 
-class  VoteCount():
+class  VoteCount:
 
     def __init__(self, staff:list, day_start_post:int):
 
