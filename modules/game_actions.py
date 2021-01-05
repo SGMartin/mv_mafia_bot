@@ -1,5 +1,6 @@
 import logging
 
+import vote_count_request
 import states.action as actions
 
 class GameAction:
@@ -35,8 +36,7 @@ class GameAction:
         self._command = command
 
         ## attempt to clean up common sentence pauses
-        to_remove = ',:'
-        self._command = self._command.rstrip(to_remove)
+        self._command = self._command.rstrip(',:')
         
         try:
             action = actions.Action(self._command)
@@ -57,6 +57,7 @@ class GameAction:
         else:
             self.victim = argument[-3] if self.alias != self.author else argument[-1]
 
+
     def _parse_unvote(self, argument:list):
         self.victim = argument[-1] if len(argument) > 1 else 'none'
     
@@ -65,6 +66,7 @@ class GameAction:
         '''
         STUB
         '''
+
 
     def _replace_player(self, argument:list):
         '''
