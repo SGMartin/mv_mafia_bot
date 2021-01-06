@@ -178,7 +178,8 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
                 vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
             
             elif game_action.type == actions.Action.vote_history:
-                    
+
+                ## TODO: Missing condition
                 ## get the last time we pushed the vhistory for this player
                 last_vhistory_for_victim = tr.get_last_vhistory_from(game_thread=settings.game_thread,
                                                                      bot_id=settings.mediavida_user,
