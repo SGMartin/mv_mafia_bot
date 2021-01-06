@@ -9,8 +9,8 @@ class  VoteCount:
     def __init__(self, staff:list, day_start_post:int):
 
         # Initialize empty vote table
-        self._vote_table = pd.DataFrame(columns=['player', 'voted_by',
-                                                'post_id', 'post_time', 'vote_alias'])
+        self._vote_table = pd.DataFrame(columns=['player', 'public_name', 'voted_by', 
+                                                 'voted_as', 'post_id', 'post_time'])
     
         self._vote_history = self._vote_table.copy()
 
@@ -23,35 +23,6 @@ class  VoteCount:
         self.staff = staff
 
         self.lynched_player = ''
-
-
-    def get_vote_table(self) -> list:
-        '''
-        This function translates lowercased player names to their actual mediavida
-        names for a fancier vote count post. To do so, it relies on the vote_rights
-        table, which features a player column. A dictionary is built in which
-        the table index is the lowercased player name and the dict. values are taken
-        from the player column. 
-
-        The vote table names are then mapped using this dictionary.
-
-        Parameters: None \n
-        Returns: 
-        A vote table pandas object in which lowercase names have been mapped to 
-        their real mediavida names.
-        '''
-
-        self._real_names = self.vote_rights['player'].to_dict()
-  
-        self._staff_to_gm = {self._staff.lower(): 'GM' for self._staff in self.staff}
-
-        self._real_names.update(self._staff_to_gm)
-
-        self._translat_table = self._vote_table
-        self._translat_table['player'] = self._translat_table['player'].map(self._real_names)
-        self._translat_table['voted_by'] = self._translat_table['voted_by'].map(self._real_names)
-
-        return self._translat_table
 
 
     def player_exists(self, player:str) -> bool:
@@ -71,14 +42,13 @@ class  VoteCount:
             return False
 
 
-    def get_real_name(self, player:str) -> str:
+    def get_real_names(self) -> dict:
 
-        if player in self.vote_rights.index:
-            return self.vote_rights.loc[player, 'player']
+        self._real_names  = self.vote_rights['player'].to_dict()
+        self._staff_to_gm = {self._staff.lower(): 'GM' for self._staff in self.staff}
+        self._real_names.update(self._staff_to_gm)
 
-        else:
-            logging.error(f'{player} not in index. Returning Nerevar :)')
-            return 'Nerevar'
+        return self._real_names
 
 
     def get_player_current_votes(self, player:str) -> int:
@@ -125,11 +95,27 @@ class  VoteCount:
 
         if self.is_valid_vote(action.author, action.victim):
 
+            ## Get the real MV names, with the proper casing, and the GM
+            ## alias for staffers
+
+            self._names_to_use = self.get_real_names()
+
+            ## By default, set the author and victim to the action lowercased ids
+            self._voter_real_name  = action.author
+            self._victim_real_name = self._names_to_use[action.victim]
+
+            ## If a member from the staff uses an alias, overwrite any author name.
+            if action.author in self.staff and action.author != action.alias:
+                self._voter_real_name = action.alias
+            else:
+                self._voter_real_name = self._names_to_use[action.author]
+
             self._append_vote(player=action.author,
                               victim=action.victim,
                               post_id=action.id,
                               post_time=action.post_time,
-                              vote_alias=action.alias)
+                              victim_alias=self._victim_real_name,
+                              voted_as=self._voter_real_name)
 
 
     def unvote_player(self, action: gm.GameAction):
@@ -235,7 +221,7 @@ class  VoteCount:
             logging.warning(f'Attempting to replace unknown player {replaced} with {replaced_by}')
 
 
-    def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, vote_alias:str):
+    def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, victim_alias:str, voted_as:str):
         '''
         This function process votes and keeps track of the vote table. Votes are added or removed based on the victim. 
 
@@ -251,7 +237,8 @@ class  VoteCount:
                                                     'voted_by': player,
                                                     'post_id': post_id,
                                                     'post_time': post_time,
-                                                    'vote_alias': vote_alias},
+                                                    'public_name': victim_alias,
+                                                    'voted_as': voted_as},
                                                     ignore_index=True)
         
         self._update_vote_history()
@@ -269,7 +256,7 @@ class  VoteCount:
         Returns: None.
         '''
 
-        if victim == 'none': 
+        if victim == 'none': ## Remove the oldest vote
             self._old_vote = self._vote_table[self._vote_table['voted_by'] == player].index[0]
         else:
             self._old_vote = self._vote_table[(self._vote_table['player'] == victim) & (self._vote_table['voted_by'] == player)].index[0]
@@ -299,7 +286,7 @@ class  VoteCount:
         # Change the player name
         self._old_player['player'] = player
 
-        # Create a 1row dataframe whose index is the lowercased player name
+        # Create a 1 row dataframe whose index is the lowercased player name
         self._new_vote_rights = pd.DataFrame(self._old_player, index=[player.lower()])
 
         # Append it to the end of the vote rights table

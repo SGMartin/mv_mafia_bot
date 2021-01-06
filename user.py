@@ -7,6 +7,9 @@ from robobrowser import RoboBrowser
 
 import pandas as pd
 
+## TODO: This class has too many args. and is too verbose for its own good. Maybe we 
+## should be passing game action objects instead of their params.
+
 class User:
 
     def  __init__(self, config: object):
@@ -45,7 +48,14 @@ class User:
                                                             post_id=post_id)
         self.post(self._message_to_post)
 
-   
+
+    def push_vote_history(self, vhistory:pd.DataFrame, voter:str, requested_by:str):
+
+        self._message_to_post = self.generate_vote_history_message(vhistory=vhistory, voter=voter, requested_by=requested_by)
+        print(self._message_to_post)
+        #self.post(self._message_to_post)
+
+
     def login(self, user, password):
 
         self._browser = RoboBrowser(parser="html.parser")
@@ -70,6 +80,7 @@ class User:
         
         return self.browser.url
 
+
     def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int, post_id:int):
 
         self._header = "# Recuento de votos \n"
@@ -89,11 +100,7 @@ class User:
 
         self._vote_table = vote_table
 
-        ## Supersede the player who voted (voted_by) by its alias if they are not the same
-        self._prioritise_alias = self._vote_table['voted_by'].str.lower() != self._vote_table['vote_alias'].str.lower()
-        self._vote_table.loc[self._prioritise_alias, 'voted_by'] = self._vote_table.loc[self._prioritise_alias, 'vote_alias']
-
-        self._vote_count = self._vote_table['player'].value_counts().sort_values(ascending=False)
+        self._vote_count = self._vote_table['public_name'].value_counts().sort_values(ascending=False)
         self._vote_rank = ''
 
         for i in range(0, len(self._vote_count)):
@@ -101,7 +108,7 @@ class User:
             self._player = self._vote_count.index[i]
             self._votes  = self._vote_count[i]
             
-            self._voters  = self._vote_table.loc[self._vote_table['player'] == self._player, 'voted_by'].tolist()
+            self._voters  = self._vote_table.loc[self._vote_table['public_name'] == self._player, 'voted_as'].tolist()
             self._voters  = ', '.join(self._voters)
 
             if self._player == 'no_lynch':
@@ -130,4 +137,43 @@ class User:
 
         self._message = self._header + self._final_votecount + '\n' + self._announcement + self._no_votes + self._footer
 
+        return self._message
+
+
+    def generate_vote_history_message(self, vhistory:pd.DataFrame, voter:str, requested_by:str):
+
+        self._header = f'# Historial de votos de {voter}\n'
+        self._footer = f'Solicitado por @{requested_by}'
+
+        self._votes = vhistory[vhistory['voted_as'] == voter.lower()]     
+
+        ## Check if there is any vote casted by this player
+        if len(self._votes.index) == 0:
+            self._markdown_table = 'No ha votado hoy.  \n'
+        else:
+            # For each player, create a column of type list with all the posts where they have been voted
+            self._votes_post_id = self._votes.groupby('public_name')['post_id'].apply(list).reset_index(name='posts')
+
+            # Cast the list to str by joining each of them
+            self._votes_post_id['posts'] = self._votes_post_id['posts'].apply(lambda x: ','.join(map(str, x)))
+
+            # Transform said dataframe  to a dict, where keys are players and values a list of posts
+            self._votes_post_id = self._votes_post_id.set_index('public_name')['posts'].to_dict()
+
+            # Count how many votes each player had
+            self._vote_history = self._votes['public_name'].value_counts()
+            self._vote_history = pd.DataFrame(self._vote_history)
+
+            # Rename columns and the index
+            self._vote_history.columns       = ['Votos']
+            self._vote_history.index.names   = ['Jugador']
+
+            # Add the messages column
+            self._vote_history['Mensajes'] = self._vote_history.index.map(self._votes_post_id)
+
+            # Requires pip/conda package tabulate
+            self._markdown_table = self._vote_history.to_markdown(numalign='center', stralign='center') + '\n'
+
+        self._message = self._header + self._markdown_table + self._footer
+        
         return self._message

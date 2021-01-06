@@ -157,6 +157,51 @@ def get_last_votecount(game_thread:str, bot_id:str) -> tuple:
     return result
 
 
+def get_last_vhistory_from(game_thread:str, bot_id:str, player:str) -> tuple:
+    '''
+    Parses the bot messages in the game thread to get the post id of the 
+    last pushed vote history for a given player.
+    
+    Parameters:
+    game_thread: A string representing the game thread
+    bot_id: Bot name.
+    player: The player whose vote history was pushed.
+
+    Returns:
+    The post id of the last vote history pushed for the given player
+    '''
+
+    last_vhistory_id = 1
+
+    bot_posts         = f'{game_thread}?u={bot_id}'
+    bot_posts         = requests.get(bot_posts).text
+  
+    # Get total gm pages
+    bot_pages = get_page_count_from_page(bot_posts)
+
+    # We'll start looping from the last page to the previous one
+    for pagenum in range(bot_pages, 0, -1):
+
+        request      = f'{game_thread}?u={bot_id}&pagina={pagenum}'
+        request      = requests.get(request).text
+        current_page = BeautifulSoup(request, 'html.parser')
+
+        #TODO: log these iterations?
+        posts        = current_page.find_all('div', attrs={'data-num':True, 'data-autor':True})
+          
+        for post in reversed(posts): # from more recent to older posts
+
+            headers = post.find_all('h2') #get all GM h2 headers
+
+            for pcount in headers:        
+                vote_count_post = re.findall(f'^Historial de votos de {player}$', pcount.text, flags=re.IGNORECASE)
+
+                if vote_count_post:
+                    last_vhistory_id = int(post['data-num'])
+
+    return last_vhistory_id
+
+
 def get_last_post(game_thread) -> int:
     '''
     Parses the game thread messages to get the post id of the 

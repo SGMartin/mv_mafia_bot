@@ -7,3 +7,5 @@ class Action(enum.Enum):
     unknown       = 'unknown'
     request_count = 'recuento'
     replace_player = 'reemplazo'
+    vote_history   = 'historial'
+    

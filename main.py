@@ -117,7 +117,7 @@ def run(update_tick: int):
                 
                 if should_update:
                     logging.info('Pushing a new votecount')
-                    push_vote_count(vote_table=VoteCount.get_vote_table(),
+                    push_vote_count(vote_table=VoteCount._vote_table,
                                     last_parsed_post=last_thread_post)
                 else:
                     logging.info('Recent votecount detected. ')
@@ -144,6 +144,55 @@ def run(update_tick: int):
         time.sleep(update_tick)
 
 
+#TODO: Handle actual permissions without a giant if/else
+def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
+    '''
+    Parameters:  \n
+    queue: A list of game actions.\n
+    vcount: The current Vote Count.\n
+    '''
+
+    allowed_actors      = player_list + staff
+
+    for game_action in queue:
+
+        if game_action.author in allowed_actors:
+
+            if game_action.type == actions.Action.vote:
+
+                vcount.vote_player(action=game_action)
+
+                if is_lynched(victim=game_action.victim, vcount=vcount):
+
+                    global majority_reached
+                    majority_reached = True
+
+                    lynch_player(vote_table=vcount._vote_table,
+                                 victim=game_action.victim,
+                                 post_id=game_action.post_id)
+
+            elif game_action.type == actions.Action.unvote:
+                vcount.unvote_player(action=game_action)
+            
+            elif game_action.type == actions.Action.replace_player and game_action.author in staff:
+                vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
+            
+            elif game_action.type == actions.Action.vote_history:
+                    
+                ## get the last time we pushed the vhistory for this player
+                last_vhistory_for_victim = tr.get_last_vhistory_from(game_thread=settings.game_thread,
+                                                                     bot_id=settings.mediavida_user,
+                                                                     player=game_action.victim)
+                if game_action.id > last_vhistory_for_victim:
+
+                    User = user.User(config=settings)
+                    User.push_vote_history(vhistory=vcount._vote_history,
+                                           voter=game_action.victim,
+                                           requested_by=game_action.author)
+                else:
+                    print('There is a fresh vote history posted already')
+
+                
 def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:int) -> bool:
     '''
     Decides if a new vote count should be posted based on:
@@ -166,46 +215,8 @@ def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:i
     elif votes_since_update >= settings.votes_until_update:
         vote_update = True
 
-    return (vote_update |  post_update)
+    return (vote_update | post_update)
 
-
-#TODO: Handle actual permissions without a giant if/else
-def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
-    '''
-    player_list: A list of alive players. Only moderators, the GM and alive
-    players may perform game actions.
-
-    Parameters:  \n
-    player_list: A list of alive players, excluding moderators and the GM.\n
-    queue: A list of game actions.\n
-    vcount: The current Vote Count.\n
-    '''
-
-    allowed_actors      = player_list + staff
-
-    for game_action in queue:
-
-        if game_action.author in allowed_actors:
-
-            if game_action.type == actions.Action.vote:
-
-                vcount.vote_player(action=game_action)
-
-                if is_lynched(victim=game_action.victim, vcount=vcount):
-
-                    global majority_reached
-                    majority_reached = True
-
-                    lynch_player(vote_table=vcount.get_vote_table(),
-                                 victim=game_action.victim,
-                                 post_id=game_action.post_id)
-
-            elif game_action.type == actions.Action.unvote:
-                vcount.unvote_player(action=game_action)
-            
-            elif game_action.type == actions.Action.replace_player and game_action.author in staff:
-                vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
-               
 
 def get_vote_majority() -> int:
     '''
