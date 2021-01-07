@@ -161,8 +161,10 @@ class User:
 
         self._header = f'# Historial de votos de {voter}\n'
         self._footer = f'Solicitado por @{requested_by}'
-
-        self._votes = vhistory[vhistory['voted_as'] == voter.lower()]     
+      
+        ## check if the provided name has voted. Do it this way because people may be using aliases
+        self._matches = vhistory['voted_as'].str.contains(voter, case=False)
+        self._votes   = vhistory[self._matches]
 
         ## Check if there is any vote casted by this player
         if len(self._votes.index) == 0:
