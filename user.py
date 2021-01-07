@@ -49,10 +49,11 @@ class User:
     
 
     def push_queue(self):
-        self._resolved_queue = '\n'.join(self._queue)
-        self.clear_queue()
 
-        print(self._resolved_queue)
+        if len(self._queue) > 0:
+            self._resolved_queue = '\n'.join(self._queue)
+            self.clear_queue()
+            print(self._resolved_queue)
         #self.post(self._resolved_queue)
 
 
