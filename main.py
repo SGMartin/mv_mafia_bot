@@ -68,7 +68,6 @@ def run(update_tick: int):
        
         if game_status[0] == stages.Stage.Day:
 
-
             current_day_start_post = game_status[1]
             VoteCount              = vote_count.VoteCount(staff=staff,
                                                           day_start_post=current_day_start_post)
@@ -151,6 +150,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
     queue: A list of game actions.\n
     vcount: The current Vote Count.\n
     '''
+    User = user.User(config=settings)
 
     allowed_actors      = player_list + staff
 
@@ -167,9 +167,9 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
                     global majority_reached
                     majority_reached = True
 
-                    lynch_player(vote_table=vcount._vote_table,
-                                 victim=game_action.victim,
-                                 post_id=game_action.post_id)
+                    User.push_lynch(last_votecount=vcount._vote_table,
+                                    victim=game_action.victim,
+                                    post_id=game_action.id)
 
             elif game_action.type == actions.Action.unvote:
                 vcount.unvote_player(action=game_action)
@@ -186,13 +186,14 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
                                                                      player=game_action.victim)
                 if game_action.id > last_vhistory_for_victim:
 
-                    User = user.User(config=settings)
-                    User.push_vote_history(vhistory=vcount._vote_history,
-                                           voter=game_action.victim,
-                                           requested_by=game_action.author)
+                    User.add_vhistory_to_queue(action=game_action,
+                                               vhistory=vcount._vote_history)
+
                 else:
                     print('There is a fresh vote history posted already')
 
+    ## Finally, push the queue If needed
+    User.push_queue()
                 
 def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:int) -> bool:
     '''
@@ -281,26 +282,6 @@ def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
                         post_id=last_parsed_post)
 
     del User
-
-
-def lynch_player(vote_table: pd.DataFrame, victim:str, post_id:int):
-        '''
-        When this function is called, a new User object is built to push a vote
-        count in which the lynch is  announced. It also sets self.majority_reached
-        to True, indicating to the bot that no more votes are allowed until a new day starts. 
-
-        Parameters:\n
-        vote_table: A dataframe with the vote table to parse for the post.\n
-        victim (str): The player to lynch.\n
-        post_id  (int): The post ID with the vote that triggered the lynch.\n
-        Returns: None
-        '''
-
-        User = user.User(config=settings)
-
-        User.push_lynch(last_votecount=vote_table,
-                        victim=victim,
-                        post_id=post_id)
 
 
 
