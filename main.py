@@ -180,7 +180,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
 
                     vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
                     allowed_actors.remove(game_action.actor)
-                    
+ 
                     logging.info(f'{game_action.actor} replaced by {game_action.victim} at {game_action.id}.')
                 else:
                     logging.info(f'Skipping replacement for player {game_action.actor} by {game_action.victim} at {game_action.id}')
@@ -188,18 +188,21 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
             
             elif game_action.type == actions.Action.vote_history:
 
-                ## TODO: Missing condition
+                ## Get the proper name from the lowercased name.
+                ## If it does not exist, it may be an alias like cuervo, so pass
+                ## it anyway
+                real_names      = vcount.get_real_names()
+                
+                #key,default
+                voter_name      = real_names.get(game_action.victim, game_action.victim)
+
                 ## get the last time we pushed the vhistory for this player
                 last_vhistory_for_victim = tr.get_last_vhistory_from(game_thread=settings.game_thread,
                                                                      bot_id=settings.mediavida_user,
-                                                                     player=game_action.victim)
+                                                                     player=voter_name)
                 if game_action.id > last_vhistory_for_victim:
-
                     User.add_vhistory_to_queue(action=game_action,
                                                vhistory=vcount._vote_history)
-
-                else:
-                    print('There is a fresh vote history posted already')
 
     ## Finally, push the queue If needed
     User.push_queue()
