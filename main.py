@@ -192,14 +192,14 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
                 ## If it does not exist, it may be an alias like cuervo, so pass
                 ## it anyway
                 real_names      = vcount.get_real_names()
-                
+
                 #key,default
-                voter_name      = real_names.get(game_action.victim, game_action.victim)
+                game_action.victim = real_names.get(game_action.victim, game_action.victim)
 
                 ## get the last time we pushed the vhistory for this player
                 last_vhistory_for_victim = tr.get_last_vhistory_from(game_thread=settings.game_thread,
                                                                      bot_id=settings.mediavida_user,
-                                                                     player=voter_name)
+                                                                     player=game_action.victim)
                 if game_action.id > last_vhistory_for_victim:
                     User.add_vhistory_to_queue(action=game_action,
                                                vhistory=vcount._vote_history)
