@@ -52,9 +52,8 @@ class User:
 
         if len(self._queue) > 0:
             self._resolved_queue = '\n'.join(self._queue)
+            self.post(self._resolved_queue)
             self.clear_queue()
-            print(self._resolved_queue)
-        #self.post(self._resolved_queue)
 
 
     def push_votecount(self, vote_count, alive_players, vote_majority, post_id):
