@@ -293,8 +293,7 @@ class  VoteCount:
             ## Two votes sharing every column and cycle come from the same user double voting
             if not self._already_appended or (self._already_appended and self._same_cycle):
                 self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True)
-            else:
-                print('Vote already appended to history')
+                
         else:
             self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True)
 
