@@ -57,6 +57,7 @@ def run(update_tick: int):
 
     Returns: None
     '''
+    bot_cyles = 0
     while(True):
 
         global player_list
@@ -70,7 +71,8 @@ def run(update_tick: int):
 
             current_day_start_post = game_status[1]
             VoteCount              = vote_count.VoteCount(staff=staff,
-                                                          day_start_post=current_day_start_post)
+                                                          day_start_post=current_day_start_post,
+                                                          bot_cyle=bot_cyles)
 
             print('We are on day time!')
 
@@ -124,6 +126,9 @@ def run(update_tick: int):
             else:
                 logging.info('Majority already reached. Skipping...')   
 
+            # Save the vote history for the next iteration
+            VoteCount.save_vote_history()
+
         elif game_status[0]  == stages.Stage.Night:
 
             logging.info('Night phase detected. Skipping...')
@@ -140,6 +145,8 @@ def run(update_tick: int):
         logging.info(f'Sleeping for {update_tick} seconds.')  
 
         print(f'Sleeping for {update_tick} seconds.')
+
+        bot_cyles += 1
         time.sleep(update_tick)
 
 

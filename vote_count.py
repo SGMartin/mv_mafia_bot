@@ -6,13 +6,17 @@ import modules.game_actions as gm
 
 class  VoteCount:
 
-    def __init__(self, staff:list, day_start_post:int):
+    def __init__(self, staff:list, day_start_post:int, bot_cyle:int):
 
         # Initialize empty vote table
         self._vote_table = pd.DataFrame(columns=['player', 'public_name', 'voted_by', 
-                                                 'voted_as', 'post_id', 'post_time'])
+                                                 'voted_as', 'post_id', 'post_time', 'bot_cycle'])
     
-        self._vote_history = self._vote_table.copy()
+        try:
+            self._vote_history = pd.read_csv('vote_history.csv', sep=',')
+        except:
+            logging.info('Failed to load vote history. Starting from scratch...')
+            self._vote_history = self._vote_table.copy()
 
         # Load vote rights table
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
@@ -23,6 +27,7 @@ class  VoteCount:
         self.staff = staff
 
         self.lynched_player = ''
+        self.bot_cycle      = bot_cyle 
 
 
     def player_exists(self, player:str) -> bool:
@@ -221,6 +226,7 @@ class  VoteCount:
             logging.warning(f'Attempting to replace unknown player {replaced} with {replaced_by}')
 
 
+    #TODO: Awful function, fix it
     def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, victim_alias:str, voted_as:str):
         '''
         This function process votes and keeps track of the vote table. Votes are added or removed based on the victim. 
@@ -238,7 +244,8 @@ class  VoteCount:
                                                     'post_id': post_id,
                                                     'post_time': post_time,
                                                     'public_name': victim_alias,
-                                                    'voted_as': voted_as},
+                                                    'voted_as': voted_as,
+                                                    'bot_cycle': self.bot_cycle},
                                                     ignore_index=True)
         
         self._update_vote_history()
@@ -255,7 +262,6 @@ class  VoteCount:
         victim (str): The unvoted player. Can be set to "none" to remove the oldest vote no matter the victim.\n
         Returns: None.
         '''
-
         if victim == 'none': ## Remove the oldest vote
             self._old_vote = self._vote_table[self._vote_table['voted_by'] == player].index[0]
         else:
@@ -269,11 +275,33 @@ class  VoteCount:
 
     def _update_vote_history(self):
         '''
-        This function copies the last appended row of the vote_table to  the
-        vote history table.
         '''
-        self._vote_history = self._vote_history.append(self._vote_table.tail(1),
-                                                       ignore_index=True)
+        self._last_vote        = self._vote_table.iloc[-1,:]
+
+        if len(self._vote_history) > 0:
+            self._columns_to_check = ['player', 'public_name',
+                                      'voted_by','voted_as',
+                                      'post_id','post_time']
+
+            # Check for a perfect match in all columns but bot_cycle
+            self._already_appended = self._vote_history[self._columns_to_check] == self._last_vote[self._columns_to_check]
+            self._already_appended = self._already_appended.all(axis=1)
+    
+            self._same_cycle       = (self._vote_history[self._already_appended]['bot_cycle']  == self.bot_cycle).any()
+            self._already_appended = self._already_appended.any()
+
+            ## Two votes sharing every column and cycle come from the same user double voting
+            if not self._already_appended or (self._already_appended and self._same_cycle):
+                self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True)
+            else:
+                print('Vote already appended to history')
+        else:
+            self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True)
+
+
+    def save_vote_history(self):
+        #TODO: STUB
+        self._vote_history.to_csv('vote_history.csv', sep=',', index=False)
 
 
     def _append_to_vote_rights(self, player:str, based_on_player:str):
