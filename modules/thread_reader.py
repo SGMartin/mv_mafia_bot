@@ -193,11 +193,13 @@ def get_last_vhistory_from(game_thread:str, bot_id:str, player:str) -> tuple:
 
             headers = post.find_all('h2') #get all GM h2 headers
 
-            for pcount in headers:        
-                vote_count_post = re.findall(f'^Historial de votos de {player}$', pcount.text, flags=re.IGNORECASE)
+            for pcount in headers:   
+
+                vote_count_post = re.findall(f'^Historial de votos de {player}$', pcount.text)
 
                 if vote_count_post:
                     last_vhistory_id = int(post['data-num'])
+                    return last_vhistory_id
 
     return last_vhistory_id
 
