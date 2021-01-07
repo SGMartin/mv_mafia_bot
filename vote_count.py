@@ -294,6 +294,5 @@ class  VoteCount:
 
         # Just in case the bot closes, let's update the vote_rights. 
         #TODO: Find  a better way to do this. 
-
         logging.info(f'Updated vote_rights.csv with {player}')
         self.vote_rights.to_csv('vote_config.csv', sep=',', index=False, header=True)
