@@ -105,7 +105,7 @@ def run(update_tick: int):
 
                     logging.info(f'Retrieved {len(action_queue)} actions for page {cur_page}')
 
-                    resolve_action_queue(queue=action_queue, vcount=VoteCount)
+                    resolve_action_queue(queue=action_queue, vcount=VoteCount, last_count=last_votecount_id)
 
                 ## get votes casted since last update
                 votes_since_update = len(VoteCount._vote_table[VoteCount._vote_table['post_id'] > last_votecount_id].index)
@@ -144,7 +144,8 @@ def run(update_tick: int):
 
 
 #TODO: Handle actual permissions without a giant if/else
-def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
+#TODO: This func. is prime candidate for refactoring
+def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:int):
     '''
     Parameters:  \n
     queue: A list of game actions.\n
@@ -203,7 +204,23 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
                 if game_action.id > last_vhistory_for_victim:
                     User.add_vhistory_to_queue(action=game_action,
                                                vhistory=vcount._vote_history)
+            
+            elif game_action.type == actions.Action.request_count: 
 
+                if game_action.author in staff:
+
+                    if game_action.id > last_count:
+                        if game_action.target_post != 0:
+                            table_to_push = vcount._vote_table[vcount._vote_table['post_id'] <= game_action.target_post]
+                            parsed_post   = game_action.target_post
+
+                        else:
+                            table_to_push = vcount._vote_table
+                            parsed_post   = game_action.id
+
+                        push_vote_count(vote_table=table_to_push,
+                                        last_parsed_post=parsed_post)
+          
     ## Finally, push the queue If needed
     User.push_queue()
                 
@@ -222,7 +239,6 @@ def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:i
 
     post_update = False
     vote_update = False
-    # gm_request  = False
 
     if last_post - last_count >= settings.posts_until_update:
         post_update = True

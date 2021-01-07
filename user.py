@@ -47,6 +47,21 @@ class User:
                                                                     requested_by=self._actor_name)
         self._queue.append(self._vhistory_message)
     
+    '''
+    def add_vote_count_request_to_queue(self, action, vote_count:pd.DataFrame)
+
+        if to_post > 1:
+            self._header = f'# Solicitud de recuento hasta {to_post} \n'
+        else:
+            self._header = '# Solicitud de recuento \n'
+        
+        self._vote_count_msg = self.generate_string_from_vote_count(vote_table=vote_count)
+        
+        self._footer = f'Solicitado por @{action.author} \n'
+
+        self._fmessage  = self._header + self._vote_count_msg + self._footer
+        self._queue.append(self._fmessage)
+    '''  
 
     def push_queue(self):
 

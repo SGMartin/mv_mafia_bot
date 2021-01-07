@@ -2,17 +2,6 @@ import logging
 
 import states.action as actions
 
-#TODO: Move this to its own file
-class VoteCountRequest:
-    def __init__(self, author:str, post_id:int, count_to_post:int):
-
-        self.author        = author
-        self.id            = post_id
-        self.count_to_post = count_to_post
-
-      #  print(f'Recuento hasta {self.count_to_post} por {self.author}')
-
-
 class GameAction:
     def __init__(self, post_id:int, post_time:int, contents:str, author:str):
 
@@ -21,9 +10,9 @@ class GameAction:
         self.post_time          = post_time
         self.actor, self.author, self.alias = author, author, author
 
-        self.victim             = 'none'
-        self.action             =  None
-        self._contents          = contents.lower().rstrip('.').split(' ')
+        self.victim                  = 'none'
+        self.target_post             =  0
+        self._contents               = contents.lower().rstrip('.').split(' ')
 
         ## Available commands
         self._action_responses = { actions.Action.vote: self._parse_vote,
@@ -79,18 +68,15 @@ class GameAction:
     
     def _parse_vote_count_request(self, argument:list):
 
-        self._count_until_post = -1
-
         ## Check if the vote count request is the default ### Recuento
         if len(argument) > 1:
+            
             # People will use this character to reference post
             self._post_candidate = argument[-1].strip('#') 
             try:
-                self._count_until_post = int(self._post_candidate)
+                self.target_post = int(self._post_candidate)
             except:
                 logging.warning(f'Cannot parse vote count request for player {self.author} at {self.id}')
-
-        self.action = VoteCountRequest(author=self.author, post_id=self.id, count_to_post=self._count_until_post)
 
 
     def _replace_player(self, argument:list):
