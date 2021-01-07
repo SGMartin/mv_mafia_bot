@@ -74,13 +74,6 @@ class User:
         self.post(self._message_to_post)
 
 
-    def push_vote_history(self, vhistory:pd.DataFrame, voter:str, requested_by:str):
-
-        self._message_to_post = self.generate_vote_history_message(vhistory=vhistory, voter=voter, requested_by=requested_by)
-        print(self._message_to_post)
-        #self.post(self._message_to_post)
-
-
     def login(self, user, password):
 
         self._browser = RoboBrowser(parser="html.parser")
