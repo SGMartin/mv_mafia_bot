@@ -212,7 +212,7 @@ class  VoteCount:
             ## Update the votetable. This is run-safe.
             self._vote_table.loc[self._vote_table['player'] == replaced, ['player', 'public_name']]  = replaced_by
             self._vote_table.loc[self._vote_table['voted_by'] == replaced, ['voted_by', 'voted_as']] = replaced_by
-            print(self._vote_table)
+
             ## Update the vote rights, do not edit it. It would invalidate the votes casted to the replaced
             ## player on the next run.
             if not self.player_exists(player=replaced_by):
