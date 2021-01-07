@@ -177,8 +177,10 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount):
             elif game_action.type == actions.Action.replace_player and game_action.author in staff:
 
                 if game_action.actor in player_list:
+
                     vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
-                    player_list.remove(game_action.actor)
+                    allowed_actors.remove(game_action.actor)
+                    
                     logging.info(f'{game_action.actor} replaced by {game_action.victim} at {game_action.id}.')
                 else:
                     logging.info(f'Skipping replacement for player {game_action.actor} by {game_action.victim} at {game_action.id}')
