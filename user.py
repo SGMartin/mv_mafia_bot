@@ -24,13 +24,37 @@ class User:
         self.thread_url = config.game_thread
         self.thread_id  = config.thread_id
 
-        self.user_id    = config.mediavida_user
-        self.password   = config.mediavida_pwd
-
+        self.user_id     = config.mediavida_user
+        self.password    = config.mediavida_pwd
         self.game_master = config.game_master
+
+        self._queue      = list()
 
         self.browser = self.login(self.user_id, self.password)
        
+
+    def clear_queue(self):
+        self._queue.clear()
+
+
+    def add_vhistory_to_queue(self, action, vhistory):
+
+        self._actor_name  = action.author
+        self._victim_name = action.victim
+
+        self._vhistory_message = self.generate_vote_history_message(vhistory=vhistory,
+                                                                    voter=self._victim_name,
+                                                                    requested_by=self._actor_name)
+        self._queue.append(self._vhistory_message)
+    
+
+    def push_queue(self):
+        self._resolved_queue = '\n'.join(self._queue)
+        self.clear_queue()
+
+        print(self._resolved_queue)
+        #self.post(self._resolved_queue)
+
 
     def push_votecount(self, vote_count, alive_players, vote_majority, post_id):
 
