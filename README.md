@@ -12,3 +12,4 @@ powered by the _BeautifulSoup_ library and _RoboBrowser_ for forms management.
 - BeautifulSoup
 - Robobrowser
 - pandas
+- tabulate
