@@ -193,6 +193,14 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
                 else:
                     logging.info(f'Skipping replacement for player {game_action.actor} by {game_action.victim} at {game_action.id}')
 
+
+            elif game_action.type == actions.Action.modkill:
+                if game_action.author in staff:
+                    if game_action.victim in player_list:
+                        player_list.remove(game_action.victim)
+                        vcount.remove_player(game_action.victim)
+
+
             #TODO: refactor candidate
             elif game_action.type == actions.Action.vote_history:
 
