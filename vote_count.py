@@ -230,6 +230,25 @@ class  VoteCount:
             logging.warning(f'Attempting to replace unknown player {replaced} with {replaced_by}')
 
 
+    def remove_player(self, player_to_remove:str):
+        '''
+        STUB
+        '''
+        #TBQH this could be easily done by subset but I do not want to deal with views.
+        # I guess?
+        if self.player_exists(player=player_to_remove):
+
+            self._votes_by_player = self._vote_table[self._vote_table['player'] == player_to_remove]
+            self._voted_by_player = self._vote_table[self._vote_table['voted_by'] == player_to_remove]
+
+            self._entries_to_drop = self._vote_table[self._votes_by_player | self._voted_by_player]
+            self._vote_table.drop(self._entries_to_drop, inplace=True)
+
+            logging.info(f'Modkilled:{player_to_remove}')
+        else:
+            logging.warning(f'Attempting to modkill invalid player {player_to_remove}')
+
+
     #TODO: Awful function, fix it
     def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, victim_alias:str, voted_as:str):
         '''
