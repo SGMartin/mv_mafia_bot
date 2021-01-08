@@ -1,12 +1,15 @@
 import enum
 
 class Action(enum.Enum):
-    vote          = 'voto'
-    unvote        = 'desvoto'
-    replace       = 'reemplazo'
-    unknown       = 'unknown'
-    request_count = 'recuento'
-    replace_player = 'reemplazo'
-    vote_history   = 'historial'
     get_voters     = 'votantes'
+    modkill        = 'modkill'
+    replace        = 'reemplazo'
+    request_count  = 'recuento'
+    replace_player = 'reemplazo'
+    unknown        = 'unknown'
+    unvote         = 'desvoto'
+    vote           = 'voto'
+    vote_history   = 'historial'
+
+
     
