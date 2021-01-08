@@ -193,7 +193,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
                 else:
                     logging.info(f'Skipping replacement for player {game_action.actor} by {game_action.victim} at {game_action.id}')
 
-            
+            #TODO: refactor candidate
             elif game_action.type == actions.Action.vote_history:
 
                 ## Get the proper name from the lowercased name.
@@ -211,6 +211,23 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
                 if game_action.id > last_vhistory_for_victim:
                     User.add_vhistory_to_queue(action=game_action,
                                                vhistory=vcount._vote_history)
+            
+            #TODO: refactor candidate
+            elif game_action.type == actions.Action.get_voters:
+
+                real_names = vcount.get_real_names()
+
+                #key,default
+                game_action.victim = real_names.get(game_action.victim, game_action.victim)
+
+                last_voters_history = tr.get_last_voters_from(game_thread=settings.game_thread,
+                                                              bot_id=settings.mediavida_user,
+                                                              player=game_action.victim)
+
+                if game_action.id > last_voters_history:
+                    User.add_voters_history_to_queue(action=game_action,
+                                                     vhistory=vcount._vote_history)
+            
             
             elif game_action.type == actions.Action.request_count: 
 

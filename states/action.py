@@ -8,4 +8,5 @@ class Action(enum.Enum):
     request_count = 'recuento'
     replace_player = 'reemplazo'
     vote_history   = 'historial'
+    get_voters     = 'votantes'
     
