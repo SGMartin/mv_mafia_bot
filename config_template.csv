@@ -1,0 +1,9 @@
+key,value
+game_thread,
+GM,
+Moderators,
+mediavida_user,
+mediavida_password,
+update_time_seconds,60
+push_vote_count_interval,30000
+votes_until_update, 10
