@@ -52,6 +52,7 @@ class  VoteCount:
         self._real_names  = self.vote_rights['player'].to_dict()
         self._staff_to_gm = {self._staff.lower(): 'GM' for self._staff in self.staff}
         self._real_names.update(self._staff_to_gm)
+        self._real_names.update({'no_lynch':'No linchamiento'})
 
         return self._real_names
 
@@ -160,7 +161,6 @@ class  VoteCount:
         if self._player_current_votes < self._player_max_votes:
 
             if victim in self.vote_rights.index:
-
                 self._victim_can_be_voted  = bool(self.vote_rights.loc[victim, 'can_be_voted'])
 
                 if self._victim_can_be_voted:
