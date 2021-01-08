@@ -20,6 +20,11 @@ class  VoteCount:
 
         # Load vote rights table
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
+
+
+        ## Check if no_lynch row is present. Add it if missing, but keep it disabled.
+        if 'no_lynch' not in self.vote_rights['player']:
+            self.vote_rights.loc[len(self.vote_rights),:] = ['no_lynch',0,0,0]
         
         # use lowercase player names as keys, player column as true names
         self.vote_rights.index = self.vote_rights['player'].str.lower()
@@ -28,7 +33,7 @@ class  VoteCount:
 
         self.lynched_player = ''
         self.bot_cycle      = bot_cyle 
-
+        
 
     def player_exists(self, player:str) -> bool:
         '''
