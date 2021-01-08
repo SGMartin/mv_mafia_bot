@@ -225,7 +225,7 @@ class User:
 
     def generate_voters_history_message(self, vhistory:pd.DataFrame, voted:str, requested_by:str):
 
-        self._header = f'# Historial de votos de {voted}\n'
+        self._header = f'# Historial de votantes de {voted}\n'
         self._footer = f'Solicitado por @{requested_by}'
       
         ## check if the provided name has been voted. 
