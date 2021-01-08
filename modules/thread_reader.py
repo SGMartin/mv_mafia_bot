@@ -204,7 +204,6 @@ def get_last_vhistory_from(game_thread:str, bot_id:str, player:str) -> tuple:
     return last_vhistory_id
 
 #TODO: refactor candidate
-
 def get_last_voters_from(game_thread:str, bot_id:str, player:str) -> tuple:
     '''
     Parses the bot messages in the game thread to get the post id of the 
