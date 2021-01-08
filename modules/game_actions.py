@@ -20,7 +20,8 @@ class GameAction:
                                    actions.Action.replace_player: self._replace_player,
                                    actions.Action.request_count: self._parse_vote_count_request,
                                    actions.Action.vote_history: self._request_vote_history,
-                                   actions.Action.get_voters: self._request_voters_history}
+                                   actions.Action.get_voters: self._request_voters_history,
+                                   actions.Action.modkill: self._modkill}
 
         # Parse command type
         self.type   = self._parse_expression(command=self._contents[0])
@@ -88,11 +89,17 @@ class GameAction:
         # who is subbing out and the last word, the substitute.
         self.actor  = argument[1]
         self.victim = argument[-1]
+
         
     def _request_vote_history(self, argument:list):
         self.victim = argument[-1]
 
+
     def _request_voters_history(self, argument:list):
+        self.victim = argument[-1]
+
+
+    def _modkill(self, argument:list):
         self.victim = argument[-1]
 
     def _default_not_found(self, argument:str):
