@@ -9,54 +9,56 @@ from states.stage import Stage
 
 
 def get_game_phase(game_thread, game_master) -> tuple:
-        '''
-        Parse the GM posts to figure out if the game is currently on game phase.
-        Parameters: None
+    '''
+    Parse the GM posts to figure out if the game is currently on game phase.
+    Parameters: None
 
-        Returns: an enumeration with the following values:
-        - Day: 1
-        - Night: 2
-        - End: 3
-        '''
+    Returns: an enumeration with the following values:
+    - Day: 1
+    - Night: 2
+    - End: 3
+    '''
         
-        post_id = 1
+    post_id = 1
 
-        gm_posts         = game_thread + '?u=' + game_master
-        gm_posts         = requests.get(gm_posts).text
+    gm_posts         = game_thread + '?u=' + game_master
+    gm_posts         = requests.get(gm_posts).text
 
-        # Get total gm pages
-        gm_pages = get_page_count_from_page(gm_posts)
+    # Get total gm pages
+    gm_pages = get_page_count_from_page(gm_posts)
 
-        # We'll start looping from the last page to the previous one
-        for pagenum in range(gm_pages, 0, -1):
+    # We'll start looping from the last page to the previous one
+    for pagenum in range(gm_pages, 0, -1):
 
-            request      = f'{game_thread}?u={game_master}&pagina={pagenum}'
-            request      = requests.get(request).text
-            current_page = BeautifulSoup(request, 'html.parser')
+        request      = f'{game_thread}?u={game_master}&pagina={pagenum}'
+        request      = requests.get(request).text
+        current_page = BeautifulSoup(request, 'html.parser')
 
-            #TODO: log these iterations?
-            posts        = current_page.find_all('div', attrs={'data-num':True,
+        #TODO: log these iterations?
+        posts        = current_page.find_all('div', attrs={'data-num':True,
                                                                'data-autor':True})
           
-            for post in reversed(posts): # from more recent to older posts
+        for post in reversed(posts): # from more recent to older posts
 
-                headers = post.find_all('h2') # get all GM h2 headers
+            headers = post.find_all('h2') # get all GM h2 headers
 
-                for pday in headers:
+            for pday in headers:
                     
-                    game_end      = re.findall('^Final de la partida', pday.text)
-                    stage_end     = re.findall('^Final del día [0-9]*', pday.text)
-                    stage_start   = re.findall('^Día [0-9]*', pday.text)
+                game_end      = re.findall('^Final de la partida', pday.text)
+                stage_end     = re.findall('^Final del día [0-9]*', pday.text)
+                stage_start   = re.findall('^Día [0-9]*', pday.text)
 
-                    post_id       = int(post['data-num'])
+                post_id       = int(post['data-num'])
 
-                    ## TODO: This could be improved
-                    if game_end:
-                        return (Stage.End, post_id)
-                    elif stage_end:
-                      return (Stage.Night, post_id) 
-                    elif stage_start:
-                        return (Stage.Day, post_id)
+                ## TODO: This could be improved
+                if game_end:
+                    return (Stage.End, post_id)
+                elif stage_end:
+                    return (Stage.Night, post_id) 
+                elif stage_start:
+                    return (Stage.Day, post_id)
+
+    return (Stage.Night, post_id)
 
 
 def get_player_list(game_thread:str, start_day_post_id:int) -> list():
