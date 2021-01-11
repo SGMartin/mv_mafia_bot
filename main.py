@@ -158,6 +158,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
     queue: A list of game actions.\n
     vcount: The current Vote Count.\n
     '''
+    global player_list
     User = user.User(config=settings)
 
     allowed_actors      = player_list + staff
