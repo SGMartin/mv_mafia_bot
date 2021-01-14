@@ -31,7 +31,10 @@ class  VoteCount:
         self.staff = staff
 
         self.lynched_player = ''
-        self.bot_cycle      = bot_cyle 
+        self.bot_cycle      = bot_cyle
+
+        # Frozen vote players
+        self.frozen_players = list() 
         
 
     def player_exists(self, player:str) -> bool:
@@ -151,6 +154,10 @@ class  VoteCount:
 
         self._is_valid_vote = False
 
+        # If the player votes are frozen then we have nothing to do here
+        if player in self.frozen_players:
+            return self._is_valid_vote
+
         if player in self.staff:
             self._player_max_votes = 999
         else:
@@ -194,6 +201,10 @@ class  VoteCount:
         '''
 
         self._is_valid_unvote = False
+
+        # If the player votes are frozen then we have nothing to do here
+        if player in self.frozen_players:
+            return self._is_valid_unvote
 
         if player in self._vote_table['voted_by'].values:
 
@@ -247,6 +258,20 @@ class  VoteCount:
             logging.info(f'Modkilled:{player_to_remove}')
         else:
             logging.warning(f'Attempting to modkill invalid player {player_to_remove}')
+
+
+    def freeze_player_votes(self, frozen_player:str):
+
+        if frozen_player not in self.staff: 
+            if self.player_exists(player=frozen_player):
+                if frozen_player not in self.frozen_players:
+                    self.frozen_players.append(frozen_player)
+                else:
+                    logging.info(f'{frozen_player} is already frozen.')
+            else:
+                logging.warning(f'Cannot freeze player {frozen_player}. Check vote_config.csv')
+        else:
+            logging.warning(f'Cannot freeze staff member {frozen_player}.')           
 
 
     #TODO: Awful function, fix it
