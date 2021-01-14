@@ -257,6 +257,19 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
 
                         push_vote_count(vote_table=table_to_push,
                                         last_parsed_post=parsed_post)
+
+
+            elif game_action.type == actions.Action.freeze_vote:
+                ## TODO: Move this logic to the vcount?
+                if game_action.author in staff:
+                    if game_action.victim == 'none': ## general freeze
+
+                        for player in vcount._vote_table['voted_by'].unique():
+                            vcount.freeze_player_votes(player)
+                    else:
+                        vcount.freeze_player_votes(game_action.victim)
+
+
           
     ## Finally, push the queue If needed
     User.push_queue()
