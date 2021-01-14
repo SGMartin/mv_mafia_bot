@@ -1,6 +1,7 @@
 import enum
 
 class Action(enum.Enum):
+    freeze_vote    = 'congelar'
     get_voters     = 'votantes'
     modkill        = 'modkill'
     replace        = 'reemplazo'
