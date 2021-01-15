@@ -7,6 +7,8 @@ from robobrowser import RoboBrowser
 
 import pandas as pd
 
+import modules.thread_reader as tr
+
 ## TODO: This class has too many args. and is too verbose for its own good. Maybe we 
 ## should be passing game action objects instead of their params.
 
@@ -173,12 +175,15 @@ class User:
       
         ## check if the provided name has voted. Do it this way because people may be using aliases
         self._matches = vhistory['voted_as'].str.contains(voter, case=False)
-        self._votes   = vhistory[self._matches]
+        self._votes   = vhistory[self._matches].copy()
 
         ## Check if there is any vote casted by this player
         if len(self._votes.index) == 0:
-            self._markdown_table = 'No ha votado. \n'
+            self._markdown_table = 'No ha votado.\n'
         else:
+
+            self._votes['post_link'] = [f'[{x}]({self.thread_url}/{tr.get_page_number_from_post(x)}#{x})' for x in self._votes['post_id']]
+
             # For each player, create a column of type list with all the posts where they have been voted
             self._votes_post_id = self._votes.groupby('public_name')['post_id'].apply(list).reset_index(name='posts')
 
@@ -197,13 +202,14 @@ class User:
             self._vote_history.index.names   = ['Jugador']
 
             # Add the messages column
-            self._vote_history['Mensajes'] = self._vote_history.index.map(self._votes_post_id)
+            self._vote_history['Votado en'] = self._vote_history.index.map(self._votes_post_id)
 
             # Requires pip/conda package tabulate
             self._markdown_table = self._vote_history.to_markdown(numalign='center', stralign='center') + '\n'
 
+        del self._votes
+
         self._message = self._header + self._markdown_table + self._footer
-        
         return self._message
 
 
@@ -214,14 +220,17 @@ class User:
       
         ## check if the provided name has been voted. 
         self._matches = vhistory['public_name'].str.contains(voted, case=False)
-        self._votes   = vhistory[self._matches]
+        self._votes   = vhistory[self._matches].copy()
 
         ## Check if there is any vote casted on this player
         if len(self._votes.index) == 0:
-            self._markdown_table = 'No lo han votado.  \n'
+            self._markdown_table = 'No lo han votado.\n'
         else:
+
+            self._votes['post_link'] = [f'[{x}]({self.thread_url}/{tr.get_page_number_from_post(x)}#{x})' for x in self._votes['post_id']]
+            
             # For each player, create a column of type list with all the posts where they have been voted
-            self._votes_post_id = self._votes.groupby('voted_as')['post_id'].apply(list).reset_index(name='posts')
+            self._votes_post_id = self._votes.groupby('voted_as')['post_link'].apply(list).reset_index(name='posts')
 
             # Cast the list to str by joining each of them
             self._votes_post_id['posts'] = self._votes_post_id['posts'].apply(lambda x: ','.join(map(str, x)))
@@ -238,11 +247,11 @@ class User:
             self._vote_history.index.names   = ['Jugador']
 
             # Add the messages column
-            self._vote_history['Mensajes'] = self._vote_history.index.map(self._votes_post_id)
+            self._vote_history['Votado en'] = self._vote_history.index.map(self._votes_post_id)
 
             # Requires pip/conda package tabulate
             self._markdown_table = self._vote_history.to_markdown(numalign='center', stralign='center') + '\n'
 
+        del self._votes
         self._message = self._header + self._markdown_table + self._footer
-        
         return self._message
