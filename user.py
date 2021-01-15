@@ -9,8 +9,6 @@ import pandas as pd
 
 import modules.thread_reader as tr
 
-## TODO: This class has too many args. and is too verbose for its own good. Maybe we 
-## should be passing game action objects instead of their params.
 
 class User:
 
