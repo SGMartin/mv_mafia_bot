@@ -84,13 +84,10 @@ class Config:
             if pd.notna(raw_config.loc['Moderators', 'value']):
 
                 self.moderators = raw_config.loc['Moderators', 'value']
-                self.moderators = self.moderators.split(',')
+                self.moderators = self.moderators.split(';')
 
                 ## clean up of trailing and ending whitespaces
-                self.moderators = [mod.split(' ') for mod in self.moderators]
-
-                ## just for testing:
-                print('Remove me: There are', len(self.moderators), 'coGM')
+                self.moderators = [mod.strip(' ') for mod in self.moderators]
     
         except Exception:
                 logging.exception('Cannot parse config file!')
