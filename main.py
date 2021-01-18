@@ -174,7 +174,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
 
                 vcount.vote_player(action=game_action)
 
-                if is_lynched(victim=game_action.victim, vcount=vcount):
+                if vcount.is_lynched(victim=game_action.victim, current_majority=get_vote_majority()):
 
                     global majority_reached
                     majority_reached = True
@@ -318,31 +318,7 @@ def get_vote_majority() -> int:
                 
     return majority
 
-
-def is_lynched(victim:str, vcount: vote_count.VoteCount) -> bool:
-    '''
-    Checks if a given player has received enough votes to be lynched. This
-    function evaluates if a given player accumulates enough votes by calculating
-    the current absolute majority required and adding to it a player specific
-    lynch modifier as defined in the vote rights table.
-
-    Parameters:\n 
-    victim (str): The player who receives the vote.\n
-    Returns:\n 
-    True if the player should be lynched.  False otherwise.
-    '''
-    lynched = False
-
-    # Count this player votes
-    lynch_votes     = vcount.get_victim_current_votes(victim)
-    player_majority = get_vote_majority() + vcount.get_player_mod_to_lynch(victim)
-        
-    if lynch_votes >= player_majority:
-        lynched = True
-        
-    return lynched
-
-    
+  
 def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
     '''
     When this function is called, a new User object is built to push a vote
