@@ -137,6 +137,31 @@ class  VoteCount:
             self._remove_vote(action.author, action.victim)
 
 
+    def is_lynched(self, victim:str, current_majority:int) -> bool:
+        '''
+        Checks if a given player has received enough votes to be lynched. This
+        function evaluates if a given player accumulates enough votes by calculating
+        the current absolute majority required and adding to it a player specific
+        lynch modifier as defined in the vote rights table.
+
+        Parameters:\n 
+        victim (str): The player who receives the vote.\n
+        Returns:\n 
+        True if the player should be lynched.  False otherwise.
+        '''
+
+        self._lynched = False
+        
+        # Count this player votes
+        self._lynch_votes     = self.get_victim_current_votes(victim)
+        self._player_majority = current_majority + self.get_player_mod_to_lynch(victim)
+
+        if self._lynch_votes >= self._player_majority:
+            self._lynched = True
+        
+        return self._lynched
+
+        
     def is_valid_vote(self, player:str, victim:str) -> bool:
         '''
         Evaluates if a given vote is valid. A valid vote has to fulfill the following
