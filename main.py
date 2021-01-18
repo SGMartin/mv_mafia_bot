@@ -84,7 +84,10 @@ def run(update_tick: int):
 
             last_votecount_id = last_votecount[0]
             majority_reached  = last_votecount[1]
-            
+
+            if last_votecount_id < current_day_start_post and majority_reached:
+                majority_reached = False            
+
             if not majority_reached:
 
                 last_thread_post  = tr.get_last_post(game_thread=settings.game_thread)
