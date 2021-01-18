@@ -4,7 +4,6 @@ class Action(enum.Enum):
     freeze_vote    = 'congelar'
     get_voters     = 'votantes'
     modkill        = 'modkill'
-    replace        = 'reemplazo'
     request_count  = 'recuento'
     replace_player = 'reemplazo'
     unknown        = 'unknown'
