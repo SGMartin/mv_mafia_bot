@@ -37,24 +37,14 @@ class User:
         self._queue.clear()
 
 
-    def add_vhistory_to_queue(self, action, vhistory):
+    def add_vhistory_to_queue(self, action, vhistory, victim_is_voter):
 
-        self._actor_name  = action.author
-        self._victim_name = action.victim
+        self._message = self.generate_history_message(vhistory=vhistory,
+                                                      is_voter=victim_is_voter,
+                                                      player=action.victim,
+                                                      requested_by=action.author)
 
-        self._vhistory_message = self.generate_vote_history_message(vhistory=vhistory,
-                                                                    voter=self._victim_name,
-                                                                    requested_by=self._actor_name)
-        self._queue.append(self._vhistory_message)
-
-    
-    def add_voters_history_to_queue(self, action, vhistory):
-
-        self._voters_history = self.generate_voters_history_message(vhistory=vhistory,
-                                                                    voted=action.victim,
-                                                                    requested_by=action.author)
-        
-        self._queue.append(self._voters_history)
+        self._queue.append(self._message)
 
 
     def push_queue(self):
@@ -97,7 +87,6 @@ class User:
 
 
     def post(self, message):
-
         self.browser.open(f'http://www.mediavida.com/foro/post.php?tid={self.thread_id}')
         self._post  = self.browser.get_form(id='postear')
         self._post['cuerpo'].value = message
@@ -105,7 +94,6 @@ class User:
         self.browser.submit_form(self._post)
         
         return self.browser.url
-
 
     def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int, post_id:int):
 
@@ -166,33 +154,39 @@ class User:
         return self._message
 
 
-    def generate_vote_history_message(self, vhistory:pd.DataFrame, voter:str, requested_by:str):
+    def generate_history_message(self, vhistory:pd.DataFrame, is_voter:bool, player:str, requested_by:str):
 
-        self._header = f'# Historial de votos de {voter}\n'
-        self._footer = f'Solicitado por @{requested_by}'
-      
-        ## check if the provided name has voted. Do it this way because people may be using aliases
-        self._matches = vhistory['voted_as'].str.contains(voter, case=False)
+        #TODO: Consider an enumerator in the future
+        if is_voter:
+
+            self._header  = f'# Historial de votos de {player}\n'
+            self._column_to_search = 'voted_as'
+            self._target_column    = 'public_name'
+        else:
+            self._header = f'# Historial de votantes de {player}\n'
+            self._column_to_search = 'public_name'
+            self._target_column    = 'voted_as'
+
+        ## check if the provided name has been voted. 
+        self._matches = vhistory[self._column_to_search].str.contains(player, case=False)
         self._votes   = vhistory[self._matches].copy()
 
-        ## Check if there is any vote casted by this player
         if len(self._votes.index) == 0:
-            self._markdown_table = 'No ha votado.\n'
+            self._markdown_table = 'No se han encontrado votos.\n'
         else:
-
             self._votes['post_link'] = [f'[{x}]({self.thread_url}/{tr.get_page_number_from_post(x)}#{x})' for x in self._votes['post_id']]
 
             # For each player, create a column of type list with all the posts where they have been voted
-            self._votes_post_id = self._votes.groupby('public_name')['post_id'].apply(list).reset_index(name='posts')
+            self._votes_post_id = self._votes.groupby(self._target_column)['post_link'].apply(list).reset_index(name='posts')
 
             # Cast the list to str by joining each of them
             self._votes_post_id['posts'] = self._votes_post_id['posts'].apply(lambda x: ','.join(map(str, x)))
 
             # Transform said dataframe  to a dict, where keys are players and values a list of posts
-            self._votes_post_id = self._votes_post_id.set_index('public_name')['posts'].to_dict()
+            self._votes_post_id = self._votes_post_id.set_index(self._target_column)['posts'].to_dict()
 
             # Count how many votes each player had
-            self._vote_history = self._votes['public_name'].value_counts()
+            self._vote_history = self._votes[self._target_column].value_counts()
             self._vote_history = pd.DataFrame(self._vote_history)
 
             # Rename columns and the index
@@ -205,51 +199,8 @@ class User:
             # Requires pip/conda package tabulate
             self._markdown_table = self._vote_history.to_markdown(numalign='center', stralign='center') + '\n'
 
-        del self._votes
+            del self._votes
 
-        self._message = self._header + self._markdown_table + self._footer
-        return self._message
-
-
-    def generate_voters_history_message(self, vhistory:pd.DataFrame, voted:str, requested_by:str):
-
-        self._header = f'# Historial de votantes de {voted}\n'
-        self._footer = f'Solicitado por @{requested_by}'
-      
-        ## check if the provided name has been voted. 
-        self._matches = vhistory['public_name'].str.contains(voted, case=False)
-        self._votes   = vhistory[self._matches].copy()
-
-        ## Check if there is any vote casted on this player
-        if len(self._votes.index) == 0:
-            self._markdown_table = 'No lo han votado.\n'
-        else:
-
-            self._votes['post_link'] = [f'[{x}]({self.thread_url}/{tr.get_page_number_from_post(x)}#{x})' for x in self._votes['post_id']]
-            
-            # For each player, create a column of type list with all the posts where they have been voted
-            self._votes_post_id = self._votes.groupby('voted_as')['post_link'].apply(list).reset_index(name='posts')
-
-            # Cast the list to str by joining each of them
-            self._votes_post_id['posts'] = self._votes_post_id['posts'].apply(lambda x: ','.join(map(str, x)))
-
-            # Transform said dataframe  to a dict, where keys are players and values a list of posts
-            self._votes_post_id = self._votes_post_id.set_index('voted_as')['posts'].to_dict()
-
-            # Count how many votes each player casted
-            self._vote_history = self._votes['voted_as'].value_counts()
-            self._vote_history = pd.DataFrame(self._vote_history)
-
-            # Rename columns and the index
-            self._vote_history.columns       = ['Votos']
-            self._vote_history.index.names   = ['Jugador']
-
-            # Add the messages column
-            self._vote_history['Votado en'] = self._vote_history.index.map(self._votes_post_id)
-
-            # Requires pip/conda package tabulate
-            self._markdown_table = self._vote_history.to_markdown(numalign='center', stralign='center') + '\n'
-
-        del self._votes
+        self._footer  = f'Solicitado por @{requested_by}'
         self._message = self._header + self._markdown_table + self._footer
         return self._message

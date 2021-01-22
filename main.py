@@ -208,42 +208,29 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
                         player_list.remove(game_action.victim)
                         vcount.remove_player(game_action.victim)
 
-
-            #TODO: refactor candidate
-            elif game_action.type == actions.Action.vote_history:
-
-                ## Get the proper name from the lowercased name.
-                ## If it does not exist, it may be an alias like cuervo, so pass
-                ## it anyway
-                real_names      = vcount.get_real_names()
-
-                #key,default
-                game_action.victim = real_names.get(game_action.victim, game_action.victim)
-
-                ## get the last time we pushed the vhistory for this player
-                last_vhistory_for_victim = tr.get_last_vhistory_from(game_thread=settings.game_thread,
-                                                                     bot_id=settings.mediavida_user,
-                                                                     player=game_action.victim)
-                if game_action.id > last_vhistory_for_victim:
-                    User.add_vhistory_to_queue(action=game_action,
-                                               vhistory=vcount._vote_history)
-            
-            #TODO: refactor candidate
-            elif game_action.type == actions.Action.get_voters:
+            elif game_action.type == actions.Action.vote_history or game_action.type == actions.Action.get_voters:
 
                 real_names = vcount.get_real_names()
 
-                #key,default
+                # get key, default
                 game_action.victim = real_names.get(game_action.victim, game_action.victim)
 
-                last_voters_history = tr.get_last_voters_from(game_thread=settings.game_thread,
+                if game_action.type == actions.Action.vote_history:
+
+                    victim_is_voter = True
+                    last_request    = tr.get_last_vhistory_from(game_thread=settings.game_thread,
+                                                                bot_id=settings.mediavida_user,
+                                                                player=game_action.victim)
+                else:
+                    victim_is_voter = False
+                    last_request    = tr.get_last_voters_from(game_thread=settings.game_thread,
                                                               bot_id=settings.mediavida_user,
                                                               player=game_action.victim)
-
-                if game_action.id > last_voters_history:
-                    User.add_voters_history_to_queue(action=game_action,
-                                                     vhistory=vcount._vote_history)
-            
+                
+                if game_action.id > last_request:
+                    User.add_vhistory_to_queue(action=game_action,
+                                               vhistory=vcount._vote_history,
+                                               victim_is_voter=victim_is_voter)
             
             elif game_action.type == actions.Action.request_count: 
 
