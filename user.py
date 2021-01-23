@@ -46,8 +46,6 @@ class User:
             vhistory (pd.DataFrame): The whole vote history as a pandas dataframe.
             victim_is_voter (bool): If the action victim is the voter or the voted player.
         """
-
-
         self._message = self.generate_history_message(vhistory=vhistory,
                                                       is_voter=victim_is_voter,
                                                       player=action.victim,
@@ -138,7 +136,7 @@ class User:
         return self.browser.url
 
 
-    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int, post_id:int):
+    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int, post_id:int) -> str:
         """Generate a formatted Markdown message representing the vote count results.
 
         Args:
@@ -148,7 +146,7 @@ class User:
             post_id (int): The post id of the last vote parsed in the vote_count.
 
         Returns:
-            [str]: A string formatted in Markdown suitable to be posted as a new message in mediavida.com
+            str: A string formatted in Markdown suitable to be posted as a new message in mediavida.com
         """
 
         self._header = "# Recuento de votos \n"
@@ -164,7 +162,7 @@ class User:
         return self._message
 
 
-    def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str, post_id:int):
+    def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str, post_id:int) ->str:
         """Generate a formatted Markdown message announcing a player lynch.
 
         Args:
@@ -173,7 +171,7 @@ class User:
             post_id (int): The post id of the last vote before the lynch.
 
         Returns:
-            [str]: A formatted Markdown message.
+            str: A formatted Markdown message.
         """
 
         self._header = '# Recuento de votos final \n'
@@ -194,14 +192,14 @@ class User:
         return self._message
 
 
-    def generate_string_from_vote_count(self, vote_table: pd.DataFrame):
+    def generate_string_from_vote_count(self, vote_table: pd.DataFrame) -> str:
         """Generate a formatted Markdown message representing the results from the current vote count.
 
         Args:
             vote_table (pd.DataFrame): A pandas dataframe with the current vote count.
 
         Returns:
-            [str]: A string formatted in Markdown table suited to be posted in mediavida.com
+            str: A string formatted in Markdown table suited to be posted in mediavida.com
         """
 
         self._vote_table = vote_table
@@ -226,7 +224,7 @@ class User:
         return self._vote_rank
 
 
-    def generate_history_message(self, vhistory:pd.DataFrame, is_voter:bool, player:str, requested_by:str):
+    def generate_history_message(self, vhistory:pd.DataFrame, is_voter:bool, player:str, requested_by:str) ->str:
         """Generate a vote history report as a Markdown formatted string to be posted in mediavida.com
 
         Args:
@@ -236,7 +234,7 @@ class User:
             requested_by (str): The player requesting the report.
 
         Returns:
-            [str]: A string formatted in Markdown suited to be posted in mediavida.com
+            str: A string formatted in Markdown suited to be posted in mediavida.com
         """
 
         #TODO: Consider an enumerator in the future
