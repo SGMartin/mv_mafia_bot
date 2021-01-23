@@ -32,17 +32,20 @@ class Config:
 
 
     def reload_config(self):
-        '''
-        Reload the config.
-        '''
+        """Reload the config by both reading and parsing the config file."""
         self._new_raw_config = self._load_file(self._config_file)
         self._parse_config(self._new_raw_config)
 
 
     def _load_file(self, file_to_load:str) -> pd.DataFrame:
-        '''
-        Loads a config file.
-        '''
+        """Attempt to load a config from a comma separated file.
+
+        Args:
+            file_to_load (str): The file to load.
+
+        Returns:
+            pd.DataFrame: The resulting config as a dataframe.
+        """
         if os.path.isfile(file_to_load):
             try:
                 self._config = pd.read_csv(file_to_load, sep=',', index_col=0)
@@ -55,11 +58,12 @@ class Config:
             sys.exit('ERROR: Could not find config file.')
 
     
-    def _parse_config(self, raw_config: pd.DataFrame) -> dict:
-        '''
-        Parses the loaded config. If any field is missing or wrong type values
-        are present, it will exit the bot, logging an exception.
-        '''
+    def _parse_config(self, raw_config: pd.DataFrame):
+        """Attempt to fill all the fields of the class with the values provided
+        Args:
+            raw_config (pd.DataFrame): A dataframe of key-value pairs containing
+            which will be used to fill the fields.
+        """
         try:
             self.game_thread    = raw_config.loc['game_thread', 'value']
             self.thread_id      = int(self.game_thread.split('-')[-1])
