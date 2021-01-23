@@ -38,16 +38,14 @@ class  VoteCount:
         
 
     def player_exists(self, player:str) -> bool:
-        '''
-        Checks if a given player is in the vote_rights table. 
+        """Check if a given player is in the vote_rights table. 
 
-        Parameters:
-        - player(str):  the player to check
+        Args:
+            player (str): The player to check
 
         Returns:
-            False if the player does not exists. True otherwise.
-        '''
-
+            bool: False if the player does not exists. True otherwise.
+        """
         if player.lower() in self.vote_rights.index:
             return True
         else:
@@ -55,6 +53,11 @@ class  VoteCount:
 
 
     def get_real_names(self) -> dict:
+        """Get a dictionary of the player names with proper casing.
+
+        Returns:
+            dict: A dict with lowercased player names as keys and properly cased names as values.
+        """
 
         self._real_names  = self.vote_rights['player'].to_dict()
         self._staff_to_gm = {self._staff.lower(): 'GM' for self._staff in self.staff}
@@ -65,37 +68,42 @@ class  VoteCount:
 
 
     def get_player_current_votes(self, player:str) -> int:
-        '''
-        Counts current casted votes by a given player.
+        """Count current casted votes by a given player.
 
-        Parameters:\n
-        player (str): The player whose votes are to be counted.
+        Args:
+            player (str): The player whose votes are to be counted.
 
-        Returns:\n
-        An int of the valid votes casted by said player.
-        '''
+        Returns:
+            int: The number of valid votes casted by said player.
+        """
         self._player_current_votes = len(self._vote_table[self._vote_table['voted_by'] == player])
 
         return self._player_current_votes
 
 
     def get_victim_current_votes(self, victim:str) -> int:
-        '''
-        Counts current votes on a given player.
+        """Count current votes on a given player.
 
-        Parameters:\n
-        victim (str): The player whose votes are to be counted
+        Args:
+            victim (str): The player whose votes are to be counted
 
-        Returns:\n
-        An int of the valid votes casted on said player.
-        '''
-        
+        Returns:
+            int: The number of valid votes casted on said player.
+        """        
         self._lynch_votes = len(self._vote_table[self._vote_table['player'] == victim])
 
         return self._lynch_votes
         
 
     def get_player_mod_to_lynch(self, player:str) -> int:
+        """Get the majority modifier of a given player.
+
+        Args:
+            player (str): 
+
+        Returns:
+            int: The majority modifier of the requested player
+        """
 
         if self.player_exists(player):
             return self.vote_rights.loc[player, 'mod_to_lynch']
@@ -105,6 +113,11 @@ class  VoteCount:
 
 
     def vote_player(self, action: gm.GameAction):
+        """Parse a vote player action.
+
+        Args:
+            action (gm.GameAction): The game action featuring the vote.
+        """
 
         if self.is_valid_vote(action.author, action.victim):
 
@@ -132,24 +145,29 @@ class  VoteCount:
 
 
     def unvote_player(self, action: gm.GameAction):
+        """Attempt to parse an unvote action.
+
+        Args:
+            action (gm.GameAction): The action triggering the unvote.
+        """
 
         if self.is_valid_unvote(action.author, action.victim):
             self._remove_vote(action.author, action.victim)
 
 
     def is_lynched(self, victim:str, current_majority:int) -> bool:
-        '''
-        Checks if a given player has received enough votes to be lynched. This
+        """ Check if a given player has received enough votes to be lynched. This
         function evaluates if a given player accumulates enough votes by calculating
         the current absolute majority required and adding to it a player specific
         lynch modifier as defined in the vote rights table.
 
-        Parameters:\n 
-        victim (str): The player who receives the vote.\n
-        Returns:\n 
-        True if the player should be lynched.  False otherwise.
-        '''
+        Args:
+            victim (str): The player who receives the vote.
+            current_majority (int): The current number of votes necessary to reach abs. majority.
 
+        Returns:
+            bool: True if the player should be lynched.  False otherwise.
+        """
         self._lynched = False
         
         # Count this player votes
@@ -163,20 +181,22 @@ class  VoteCount:
 
         
     def is_valid_vote(self, player:str, victim:str) -> bool:
-        '''
-        Evaluates if a given vote is valid. A valid vote has to fulfill the following
+        """Evaluate if a given vote is valid. A valid vote has to fulfill the following
         requirements:
 
         a) The victim can be voted: alive, playing and set as vote candidate in the vote rights table.\n
-        b) The voting player must have casted less votes than their current limit.
+        b) The voting player must have casted less votes than their current limit.\n
+        c) No other special conditions (i.e. freezing) which prevent the cast of the vote apply.\n
 
-        Parameters:\n 
-        player (str): The player casting the vote.
-        victim (str): The player who receives the vote.\n
-        Returns:\n 
-        True if the vote is valid, False otherwise.
-        '''
 
+        Args:
+            player (str): The player casting the vote.
+            victim (str): The player who receives the vote.\n
+
+
+        Returns:
+            bool: True if the vote is valid, False otherwise.
+        """
         self._is_valid_vote = False
 
         # If the player votes are frozen then we have nothing to do here
@@ -213,18 +233,19 @@ class  VoteCount:
 
 
     def is_valid_unvote(self, player:str, victim:str) -> bool:
-        '''
-        Evaluates if a given unvote is valid. A valid unvote has to fulfill the following
-        requirements: The player has previously casted a voted to victim or has
-        at least one casted vote if victim = 'none'
+        """Evaluate if a given unvote is valid. A valid unvote has to fulfill the following
+        requirements: 
 
-        Parameters:\n 
-        player (str): The player casting the vote.
-        victim (str): The player who receives the unvote the vote. Can be none for a general unvote.\n
-        Returns:\n 
-        True if the unvote is valid, False otherwise.
-        '''
+        a)The player has previously casted a voted to victim 
+        b)The player has at least one casted vote if victim = 'none'
 
+        Args:
+            player (str): The player casting the vote.
+            victim (str): The player who receives the unvote the vote. Can be none for a general unvote
+
+        Returns:
+            bool: True if the unvote is valid, False otherwise.
+        """
         self._is_valid_unvote = False
 
         # If the player votes are frozen then we have nothing to do here
@@ -249,9 +270,15 @@ class  VoteCount:
 
 
     def replace_player(self, replaced:str, replaced_by:str):
-        '''
-        STUB
-        '''
+        """Attempt to replace a given player by another one. The substitute
+        inherits all the votes casted to him as well as the votes casted by the
+        replaced player.
+
+        Args:
+            replaced (str): The replaced player.
+            replaced_by (str): The substitute.
+        """
+    
         if self.player_exists(player=replaced):
 
             ## Update the votetable. This is run-safe.
@@ -267,11 +294,12 @@ class  VoteCount:
 
 
     def remove_player(self, player_to_remove:str):
-        '''
-        STUB
-        '''
-        #TBQH this could be easily done by subset but I do not want to deal with views.
-        # I guess?
+        """Attempt to remove a player from the game. This means eliminating all
+        the votes casted to and casted by this player.
+
+        Args:
+            player_to_remove (str): The player to remove.
+        """
         if self.player_exists(player=player_to_remove):
 
             self._votes_by_player = self._vote_table[self._vote_table['player'] == player_to_remove]
@@ -286,6 +314,11 @@ class  VoteCount:
 
 
     def freeze_player_votes(self, frozen_player:str):
+        """Attempt to append a player to the list of frozen players.
+
+        Args:
+            frozen_player (str): The player to append.
+        """
 
         if frozen_player not in self.staff: 
             if self.player_exists(player=frozen_player):
@@ -301,17 +334,16 @@ class  VoteCount:
 
     #TODO: Awful function, fix it
     def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, victim_alias:str, voted_as:str):
-        '''
-        This function process votes and keeps track of the vote table. Votes are added or removed based on the victim. 
+        """Append a new vote to the vote count.
 
-        Parameters:\n
-        player (str): The player who casts the vote.\n
-        victim (str): The player who receives the vote. Can be set to "desvoto" to remove a previously casted voted by player.\n
-        post_id  (int): The post ID where the vote was casted.\n
-        post_time (int): Unix epoch time of the post where the vote was casted.\n
-        Returns: None.
-        '''
-
+        Args:
+            player (str): The (lowercased) casting the vote. 
+            victim (str): The (lowercased) player receiving the vote.
+            post_id (int): The post number where the vote was casted.
+            post_time (int): The UNIX epoch time of the post where the vote was casted.
+            victim_alias (str): The real name (properly cased) of the player receiving the vote.
+            voted_as (str): The vote alias of the player casting the v ote.
+        """
         self._vote_table  = self._vote_table.append({'player': victim,
                                                     'voted_by': player,
                                                     'post_id': post_id,
@@ -326,15 +358,13 @@ class  VoteCount:
 
 
     def _remove_vote(self, player:str, victim:str):
-        '''
-        This function removes a given vote from the vote table. They are always
+        """Remove a given vote from the vote table. They are always
         removed from the oldest to the newest casted vote. 
 
-        Parameters:\n
-        player (str): The player who removes the vote.\n
-        victim (str): The unvoted player. Can be set to "none" to remove the oldest vote no matter the victim.\n
-        Returns: None.
-        '''
+        Args:
+            player (str): The player who removes the vote.
+            victim (str): The unvoted player. Can be set to "none" to remove the oldest vote no matter the victim.
+        """
         if victim == 'none': ## Remove the oldest vote
             self._old_vote = self._vote_table[self._vote_table['voted_by'] == player].index[0]
         else:
@@ -347,8 +377,10 @@ class  VoteCount:
     
 
     def _update_vote_history(self):
-        '''
-        '''
+        """Attempt to update the vote history with the last vote from the vote table.
+           Any vote already present will be skipped.
+        """
+
         self._last_vote        = self._vote_table.iloc[-1,:]
 
         if len(self._vote_history) > 0:
@@ -372,14 +404,19 @@ class  VoteCount:
 
 
     def save_vote_history(self):
-        #TODO: STUB
+        """Save the vote history to a file called vote_history.csv"""
         self._vote_history.to_csv('vote_history.csv', sep=',', index=False)
 
 
     def _append_to_vote_rights(self, player:str, based_on_player:str):
-        '''
+        """Add a player to the vote_rights table by copying the vote rights of
+        another player.
 
-        '''
+        Args:
+            player (str): The name of the player entry to add to the table.
+            based_on_player (str): The name of a player whose vote rights will be used
+            for the new player.
+        """
         ## Get the rights reg. to base the new entry on
         self._old_player = self.vote_rights.loc[based_on_player].to_dict()
 
