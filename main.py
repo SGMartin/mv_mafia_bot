@@ -46,17 +46,14 @@ def main():
 
 
 def run(update_tick: int):
-    '''
-    Main bot loop. It iterates each N seconds, as defined by the config file. 
+    """Main bot loop. It iterates each N seconds, as defined by the config file. 
     For each iteration, it parses the game thread if we are on day phase, 
     then collects and resolves all the game actions and decide 
     if a new vote count should be pushed.
 
-    Parameters: 
-    update_tick (int): Seconds to pass between bot iterations.
-
-    Returns: None
-    '''
+    Args:
+        update_tick (int): Seconds to pass between bot iterations.
+    """
     bot_cyles = 0
     while(True):
 
@@ -265,18 +262,20 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
     User.push_queue()
                 
 def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:int) -> bool:
-    '''
-    Decides if a new vote count should be posted based on:
+    """Decide if a new vote count should be posted based on:
         
     a) Pending GM requests.\n
-    b) How many messages were posted since the last vote count. This is used-defined.
+    b) How many messages were posted since the last vote count. This is used-defined.\n
 
-    Parameters: None
+
+    Args:
+        last_count (int): The id of the last vote count pushed to the game thread.
+        last_post (int): The id of the last post in the game thread.
+        votes_since_update (int): The amount of casted votes since last_count.
 
     Returns:
-    True/False (bool): Whether to push a new vote count.
-    '''
-
+        bool: Whether to push a new vote count.
+    """
     post_update = False
     vote_update = False
 
@@ -289,15 +288,12 @@ def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:i
 
 
 def get_vote_majority() -> int:
-    '''
-    Calculates the amount of votes necessary to reach an absolute majority
-    and lynch a player based on the amount of alive players. 
+    """Calculate the amount of votes necessary to reach an absolute majority
+    and lynch a player based on the amount of alive players.
 
-    Parameters:  \n
-    Returns: \n
-    majority (int): The absolute majority of votes required  to lynch a player.
-    '''
-
+    Returns:
+        int: The absolute majority of votes required  to lynch a player.
+    """
     if (len(player_list) % 2) == 0:
         majority = math.ceil(len(player_list) / 2) + 1
     else:
@@ -307,17 +303,13 @@ def get_vote_majority() -> int:
 
   
 def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
-    '''
-    When this function is called, a new User object is built to push a vote
-    count using the current vote table. The object is deleted when the function
-    ends.
+    """Instance a new User object to push a vote count using the current vote table. 
+    The object is deleted afterwards.
 
-    Parameters: \n
-    vote_table: A dataframe with the vote table to parse for the post.\n
-    last_parsed_post: Last post parsed by the bot.\n
-    Returns: None
-    '''
-
+    Args:
+        vote_table (pd.DataFrame): A dataframe with the vote table to parse for the post.
+        last_parsed_post (int):  Last post parsed by the bot.
+    """
     User = user.User(config=settings)
                     
     User.push_votecount(vote_count=vote_table,
