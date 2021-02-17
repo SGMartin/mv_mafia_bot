@@ -169,7 +169,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
 
         if game_action.author in allowed_actors:
 
-            if game_action.type == actions.Action.vote:
+            if game_action.type == actions.Action.vote and game_action.victim in player_list:
 
                 vcount.vote_player(action=game_action)
 
@@ -182,8 +182,10 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
                                     victim=game_action.victim,
                                     post_id=game_action.id)
 
+
             elif game_action.type == actions.Action.unvote:
                 vcount.unvote_player(action=game_action)
+            
             
             elif game_action.type == actions.Action.replace_player and game_action.author in staff:
 
