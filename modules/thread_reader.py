@@ -63,7 +63,7 @@ def get_game_phase(game_thread:str, game_master:str) -> tuple:
     return (Stage.Night, post_id)
 
 
-def get_player_list(game_thread:str, start_day_post_id:int) -> list(str):
+def get_player_list(game_thread:str, start_day_post_id:int) -> list:
     """Retrieve a list of strings with all the names of the currently alive
     players by parsing the game post where the list of alive players is announced.
     This function extracts all <ol> and <a> elements from the first list found
