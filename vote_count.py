@@ -35,6 +35,8 @@ class  VoteCount:
 
         # Frozen vote players
         self.frozen_players = list() 
+
+        self.locked_unvotes = False
         
 
     def player_exists(self, player:str) -> bool:
@@ -248,10 +250,14 @@ class  VoteCount:
         """
         self._is_valid_unvote = False
 
+        if self.locked_unvotes:
+            logging.info(f'Ignoring unvote casted by {player} due to LyLo.')
+            return self._is_valid_unvote
+
         # If the player votes are frozen then we have nothing to do here
         if player in self.frozen_players:
             return self._is_valid_unvote
-
+        
         if player in self._vote_table['voted_by'].values:
 
             if self.get_player_current_votes(player) >  0:
@@ -330,6 +336,16 @@ class  VoteCount:
                 logging.warning(f'Cannot freeze player {frozen_player}. Check vote_config.csv')
         else:
             logging.warning(f'Cannot freeze staff member {frozen_player}.')           
+
+
+    def lock_unvotes(self):
+        """
+        Lock the vote count, so that players will not be able to unvote for the
+        remaining of the day once a vote is casted. 
+        """
+        if not self.locked_unvotes:
+            self.locked_unvotes = True
+            logging.info('The vote count has been locked')
 
 
     #TODO: Awful function, fix it
