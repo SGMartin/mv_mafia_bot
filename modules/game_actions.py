@@ -22,7 +22,8 @@ class GameAction:
                                    actions.Action.vote_history: self._request_vote_history,
                                    actions.Action.get_voters: self._request_voters_history,
                                    actions.Action.modkill: self._modkill,
-                                   actions.Action.freeze_vote: self._freeze_votes}
+                                   actions.Action.freeze_vote: self._freeze_votes,
+                                   actions.Action.lylo: self._set_lylo}
 
         # Parse command type
         self.type   = self._parse_expression(command=self._contents[0])
@@ -103,6 +104,8 @@ class GameAction:
     def _modkill(self, argument:list):
         self.victim = argument[-1]
     
+    def _set_lylo(self, argument:list):
+        self.target_post = self.id
     
     def _freeze_votes(self, argument:list):
 

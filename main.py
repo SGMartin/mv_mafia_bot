@@ -180,11 +180,16 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
                                     victim=game_action.victim,
                                     post_id=game_action.id)
 
-
             elif game_action.type == actions.Action.unvote:
                 vcount.unvote_player(action=game_action)
             
-            
+            elif game_action.type == actions.Action.lylo:
+
+                logging.info(f'{game_action.author} requested an vcount lock at  {game_action.post_id}')
+
+                if game_action.author in staff:
+                    vcount.lock_unvotes()
+
             elif game_action.type == actions.Action.replace_player and game_action.author in staff:
 
                 if game_action.actor in player_list:
