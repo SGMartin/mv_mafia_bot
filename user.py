@@ -7,8 +7,8 @@ from robobrowser import RoboBrowser
 
 import pandas as pd
 
-## TODO: This class has too many args. and is too verbose for its own good. Maybe we 
-## should be passing game action objects instead of their params.
+import modules.thread_reader as tr
+import modules.game_actions  
 
 class User:
 
@@ -34,46 +34,28 @@ class User:
        
 
     def clear_queue(self):
+        """Empty the queue of messages to push to the game thread."""
         self._queue.clear()
 
 
-    def add_vhistory_to_queue(self, action, vhistory):
+    def add_vhistory_to_queue(self, action:modules.game_actions.GameAction, vhistory:pd.DataFrame, victim_is_voter:bool):
+        """Generate a vhistory message and append it to the queue.
 
-        self._actor_name  = action.author
-        self._victim_name = action.victim
+        Args:
+            action (modules.game_actions.GameAction): Vhistory request action.
+            vhistory (pd.DataFrame): The whole vote history as a pandas dataframe.
+            victim_is_voter (bool): If the action victim is the voter or the voted player.
+        """
+        self._message = self.generate_history_message(vhistory=vhistory,
+                                                      is_voter=victim_is_voter,
+                                                      player=action.victim,
+                                                      requested_by=action.author)
 
-        self._vhistory_message = self.generate_vote_history_message(vhistory=vhistory,
-                                                                    voter=self._victim_name,
-                                                                    requested_by=self._actor_name)
-        self._queue.append(self._vhistory_message)
+        self._queue.append(self._message)
 
-    
-    def add_voters_history_to_queue(self, action, vhistory):
-
-        self._voters_history = self.generate_voters_history_message(vhistory=vhistory,
-                                                                    voted=action.victim,
-                                                                    requested_by=action.author)
-        
-        self._queue.append(self._voters_history)
-
-
-    '''
-    def add_vote_count_request_to_queue(self, action, vote_count:pd.DataFrame)
-
-        if to_post > 1:
-            self._header = f'# Solicitud de recuento hasta {to_post} \n'
-        else:
-            self._header = '# Solicitud de recuento \n'
-        
-        self._vote_count_msg = self.generate_string_from_vote_count(vote_table=vote_count)
-        
-        self._footer = f'Solicitado por @{action.author} \n'
-
-        self._fmessage  = self._header + self._vote_count_msg + self._footer
-        self._queue.append(self._fmessage)
-    '''  
 
     def push_queue(self):
+        """Post the whole queue of messages to the game thread."""
 
         if len(self._queue) > 0:
             self._resolved_queue = '\n'.join(self._queue)
@@ -81,8 +63,16 @@ class User:
             self.clear_queue()
 
 
-    def push_votecount(self, vote_count, alive_players, vote_majority, post_id):
+    def push_votecount(self, vote_count:pd.DataFrame, alive_players:int, vote_majority:int, post_id:int):
+        """Generate a new vote count message and push it to the game thread. Skips the queue.
 
+        Args:
+            vote_count (pd.DataFrame): The vote count object used to generate the message.
+            alive_players (int): The number of alive players
+            vote_majority (int): The number of votes necessary to reach majority.
+            post_id (int): The post number of the last vote.
+        """
+        
         self._message_to_post = self.generate_vote_message(vote_count=vote_count,
                                                            alive_players=alive_players,
                                                            vote_majority=vote_majority,
@@ -90,7 +80,14 @@ class User:
         self.post(self._message_to_post)
 
     
-    def push_lynch(self, last_votecount, victim, post_id):
+    def push_lynch(self, last_votecount: pd.DataFrame, victim:str, post_id:int):
+        """Generate a player lynched message and immediately post it the game thread. Skips the queue.
+
+        Args:
+            last_votecount (pd.DataFrame): The vote count table after the last vote.
+            victim (str): The lynched player name.
+            post_id (int): The post number where the vote triggering the lynch was casted.
+        """
 
         self._message_to_post = self.generate_lynch_message(last_votecount=last_votecount,
                                                             victim=victim,
@@ -98,7 +95,16 @@ class User:
         self.post(self._message_to_post)
 
 
-    def login(self, user, password):
+    def login(self, user:str, password:str):
+        """Open and resolve mediavida.com login form to log into the bot account.
+
+        Args:
+            user (str): The user id to log into the account.
+            password (str): The password to log into the account.
+
+        Returns:
+            [Robobrowser]: The resolved form.
+        """
 
         self._browser = RoboBrowser(parser="html.parser")
         self._browser.open('http://m.mediavida.com/login')
@@ -112,8 +118,15 @@ class User:
         return self._browser
 
 
-    def post(self, message):
+    def post(self, message:str):
+        """Open and resolve the post message form from mediavida.com
 
+        Args:
+            message (str): The message to post in the game thread.
+
+        Returns:
+            [Robobrowser]: The resolved form.
+        """
         self.browser.open(f'http://www.mediavida.com/foro/post.php?tid={self.thread_id}')
         self._post  = self.browser.get_form(id='postear')
         self._post['cuerpo'].value = message
@@ -123,7 +136,18 @@ class User:
         return self.browser.url
 
 
-    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int, post_id:int):
+    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int, post_id:int) -> str:
+        """Generate a formatted Markdown message representing the vote count results.
+
+        Args:
+            vote_count (pd.DataFrame): The vote count to parse.
+            alive_players (int): The number of alive players.
+            vote_majority (int): The current number of votes to reach abs.majority.
+            post_id (int): The post id of the last vote parsed in the vote_count.
+
+        Returns:
+            str: A string formatted in Markdown suitable to be posted as a new message in mediavida.com
+        """
 
         self._header = "# Recuento de votos \n"
 
@@ -138,7 +162,45 @@ class User:
         return self._message
 
 
-    def generate_string_from_vote_count(self, vote_table: pd.DataFrame):
+    def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str, post_id:int) ->str:
+        """Generate a formatted Markdown message announcing a player lynch.
+
+        Args:
+            last_votecount (pd.DataFrame): The vote count when the player is lynched.
+            victim (str): The lynched player.
+            post_id (int): The post id of the last vote before the lynch.
+
+        Returns:
+            str: A formatted Markdown message.
+        """
+
+        self._header = '# Recuento de votos final \n'
+
+        if victim  == 'no_lynch':
+            self._announcement = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}. Nadie será linchado! ### \n'
+        
+        else:
+            self._announcement = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}, se linchará a {victim}! ### \n'
+
+        self._final_votecount = self.generate_string_from_vote_count(vote_table=last_votecount)
+
+        self._no_votes = f'**Ya no se admiten más votos.** \n \n'
+        self._footer   = f'@{self.game_master}, el pueblo ha hablado. \n'
+
+        self._message = self._header + self._final_votecount + '\n' + self._announcement + self._no_votes + self._footer
+
+        return self._message
+
+
+    def generate_string_from_vote_count(self, vote_table: pd.DataFrame) -> str:
+        """Generate a formatted Markdown message representing the results from the current vote count.
+
+        Args:
+            vote_table (pd.DataFrame): A pandas dataframe with the current vote count.
+
+        Returns:
+            str: A string formatted in Markdown table suited to be posted in mediavida.com
+        """
 
         self._vote_table = vote_table
 
@@ -162,50 +224,50 @@ class User:
         return self._vote_rank
 
 
-    def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str, post_id:int):
+    def generate_history_message(self, vhistory:pd.DataFrame, is_voter:bool, player:str, requested_by:str) ->str:
+        """Generate a vote history report as a Markdown formatted string to be posted in mediavida.com
 
-        self._header = '# Recuento de votos final \n'
+        Args:
+            vhistory (pd.DataFrame): The current history of votes from the start of the game.
+            is_voter (bool): If the report is from a player casted votes or the votes casted to the player.
+            player (str): The player from which to generate the report.
+            requested_by (str): The player requesting the report.
 
-        if victim  == 'no_lynch':
-            self._announcement = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}. Nadie será linchado! ### \n'
-        
+        Returns:
+            str: A string formatted in Markdown suited to be posted in mediavida.com
+        """
+
+        #TODO: Consider an enumerator in the future
+        if is_voter:
+
+            self._header  = f'# Historial de votos de {player}\n'
+            self._column_to_search = 'voted_as'
+            self._target_column    = 'public_name'
         else:
-            self._announcement = f'### ¡Se ha alcanzado mayoría absoluta en {post_id}, se linchará a {victim}! ### \n'
+            self._header = f'# Historial de votantes de {player}\n'
+            self._column_to_search = 'public_name'
+            self._target_column    = 'voted_as'
 
-        self._final_votecount = self.generate_string_from_vote_count(vote_table=last_votecount)
+        ## check if the provided name has been voted. 
+        self._matches = vhistory[self._column_to_search].str.contains(player, case=False)
+        self._votes   = vhistory[self._matches].copy()
 
-        self._no_votes = f'**Ya no se admiten más votos.** \n \n'
-        self._footer   = f'@{self.game_master}, el pueblo ha hablado. \n'
-
-        self._message = self._header + self._final_votecount + '\n' + self._announcement + self._no_votes + self._footer
-
-        return self._message
-
-
-    def generate_vote_history_message(self, vhistory:pd.DataFrame, voter:str, requested_by:str):
-
-        self._header = f'# Historial de votos de {voter}\n'
-        self._footer = f'Solicitado por @{requested_by}'
-      
-        ## check if the provided name has voted. Do it this way because people may be using aliases
-        self._matches = vhistory['voted_as'].str.contains(voter, case=False)
-        self._votes   = vhistory[self._matches]
-
-        ## Check if there is any vote casted by this player
         if len(self._votes.index) == 0:
-            self._markdown_table = 'No ha votado. \n'
+            self._markdown_table = 'No se han encontrado votos.\n'
         else:
+            self._votes['post_link'] = [f'[{x}]({self.thread_url}/{tr.get_page_number_from_post(x)}#{x})' for x in self._votes['post_id']]
+
             # For each player, create a column of type list with all the posts where they have been voted
-            self._votes_post_id = self._votes.groupby('public_name')['post_id'].apply(list).reset_index(name='posts')
+            self._votes_post_id = self._votes.groupby(self._target_column)['post_link'].apply(list).reset_index(name='posts')
 
             # Cast the list to str by joining each of them
             self._votes_post_id['posts'] = self._votes_post_id['posts'].apply(lambda x: ','.join(map(str, x)))
 
             # Transform said dataframe  to a dict, where keys are players and values a list of posts
-            self._votes_post_id = self._votes_post_id.set_index('public_name')['posts'].to_dict()
+            self._votes_post_id = self._votes_post_id.set_index(self._target_column)['posts'].to_dict()
 
             # Count how many votes each player had
-            self._vote_history = self._votes['public_name'].value_counts()
+            self._vote_history = self._votes[self._target_column].value_counts()
             self._vote_history = pd.DataFrame(self._vote_history)
 
             # Rename columns and the index
@@ -213,52 +275,13 @@ class User:
             self._vote_history.index.names   = ['Jugador']
 
             # Add the messages column
-            self._vote_history['Mensajes'] = self._vote_history.index.map(self._votes_post_id)
+            self._vote_history['Votado en'] = self._vote_history.index.map(self._votes_post_id)
 
             # Requires pip/conda package tabulate
             self._markdown_table = self._vote_history.to_markdown(numalign='center', stralign='center') + '\n'
 
+            del self._votes
+
+        self._footer  = f'Solicitado por @{requested_by}'
         self._message = self._header + self._markdown_table + self._footer
-        
-        return self._message
-
-
-    def generate_voters_history_message(self, vhistory:pd.DataFrame, voted:str, requested_by:str):
-
-        self._header = f'# Historial de votantes de {voted}\n'
-        self._footer = f'Solicitado por @{requested_by}'
-      
-        ## check if the provided name has been voted. 
-        self._matches = vhistory['public_name'].str.contains(voted, case=False)
-        self._votes   = vhistory[self._matches]
-
-        ## Check if there is any vote casted on this player
-        if len(self._votes.index) == 0:
-            self._markdown_table = 'No lo han votado.  \n'
-        else:
-            # For each player, create a column of type list with all the posts where they have been voted
-            self._votes_post_id = self._votes.groupby('voted_as')['post_id'].apply(list).reset_index(name='posts')
-
-            # Cast the list to str by joining each of them
-            self._votes_post_id['posts'] = self._votes_post_id['posts'].apply(lambda x: ','.join(map(str, x)))
-
-            # Transform said dataframe  to a dict, where keys are players and values a list of posts
-            self._votes_post_id = self._votes_post_id.set_index('voted_as')['posts'].to_dict()
-
-            # Count how many votes each player casted
-            self._vote_history = self._votes['voted_as'].value_counts()
-            self._vote_history = pd.DataFrame(self._vote_history)
-
-            # Rename columns and the index
-            self._vote_history.columns       = ['Votos']
-            self._vote_history.index.names   = ['Jugador']
-
-            # Add the messages column
-            self._vote_history['Mensajes'] = self._vote_history.index.map(self._votes_post_id)
-
-            # Requires pip/conda package tabulate
-            self._markdown_table = self._vote_history.to_markdown(numalign='center', stralign='center') + '\n'
-
-        self._message = self._header + self._markdown_table + self._footer
-        
         return self._message

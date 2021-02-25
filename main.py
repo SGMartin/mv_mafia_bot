@@ -46,18 +46,19 @@ def main():
 
 
 def run(update_tick: int):
-    '''
-    Main bot loop. It iterates each N seconds, as defined by the config file. 
+    """Main bot loop. It iterates each N seconds, as defined by the config file. 
     For each iteration, it parses the game thread if we are on day phase, 
     then collects and resolves all the game actions and decide 
     if a new vote count should be pushed.
 
-    Parameters: 
-    update_tick (int): Seconds to pass between bot iterations.
+    Args:
+        update_tick (int): Seconds to pass between bot iterations.
+    """
 
-    Returns: None
-    '''
-    bot_cyles = 0
+    ## Attempt to recover the last bot cycle just in case of an unexpected
+    ## crash. Needed for the vhistory to work correctly.
+    bot_cyles = get_last_bot_cycle()
+
     while(True):
 
         global player_list
@@ -161,6 +162,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
     queue: A list of game actions.\n
     vcount: The current Vote Count.\n
     '''
+    global player_list
     User = user.User(config=settings)
 
     allowed_actors      = player_list + staff
@@ -173,7 +175,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
 
                 vcount.vote_player(action=game_action)
 
-                if is_lynched(victim=game_action.victim, vcount=vcount):
+                if vcount.is_lynched(victim=game_action.victim, current_majority=get_vote_majority()):
 
                     global majority_reached
                     majority_reached = True
@@ -182,57 +184,61 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
                                     victim=game_action.victim,
                                     post_id=game_action.id)
 
-
             elif game_action.type == actions.Action.unvote:
                 vcount.unvote_player(action=game_action)
             
-            
+            elif game_action.type == actions.Action.lylo:
+
+                logging.info(f'{game_action.author} requested an vcount lock at  {game_action.post_id}')
+
+                if game_action.author in staff:
+                    vcount.lock_unvotes()
+
             elif game_action.type == actions.Action.replace_player and game_action.author in staff:
 
                 if game_action.actor in player_list:
 
                     vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
                     allowed_actors.remove(game_action.actor)
+
+                    if game_action.victim not in player_list:
+                        allowed_actors.append(game_action.victim)
+                        player_list.append(game_action.victim)
  
                     logging.info(f'{game_action.actor} replaced by {game_action.victim} at {game_action.id}.')
                 else:
                     logging.info(f'Skipping replacement for player {game_action.actor} by {game_action.victim} at {game_action.id}')
 
-            #TODO: refactor candidate
-            elif game_action.type == actions.Action.vote_history:
 
-                ## Get the proper name from the lowercased name.
-                ## If it does not exist, it may be an alias like cuervo, so pass
-                ## it anyway
-                real_names      = vcount.get_real_names()
+            elif game_action.type == actions.Action.modkill:
+                if game_action.author in staff:
+                    if game_action.victim in player_list:
+                        player_list.remove(game_action.victim)
+                        vcount.remove_player(game_action.victim)
 
-                #key,default
-                game_action.victim = real_names.get(game_action.victim, game_action.victim)
-
-                ## get the last time we pushed the vhistory for this player
-                last_vhistory_for_victim = tr.get_last_vhistory_from(game_thread=settings.game_thread,
-                                                                     bot_id=settings.mediavida_user,
-                                                                     player=game_action.victim)
-                if game_action.id > last_vhistory_for_victim:
-                    User.add_vhistory_to_queue(action=game_action,
-                                               vhistory=vcount._vote_history)
-            
-            #TODO: refactor candidate
-            elif game_action.type == actions.Action.get_voters:
+            elif game_action.type == actions.Action.vote_history or game_action.type == actions.Action.get_voters:
 
                 real_names = vcount.get_real_names()
 
-                #key,default
+                # get key, default
                 game_action.victim = real_names.get(game_action.victim, game_action.victim)
 
-                last_voters_history = tr.get_last_voters_from(game_thread=settings.game_thread,
+                if game_action.type == actions.Action.vote_history:
+
+                    victim_is_voter = True
+                    last_request    = tr.get_last_vhistory_from(game_thread=settings.game_thread,
+                                                                bot_id=settings.mediavida_user,
+                                                                player=game_action.victim)
+                else:
+                    victim_is_voter = False
+                    last_request    = tr.get_last_voters_from(game_thread=settings.game_thread,
                                                               bot_id=settings.mediavida_user,
                                                               player=game_action.victim)
-
-                if game_action.id > last_voters_history:
-                    User.add_voters_history_to_queue(action=game_action,
-                                                     vhistory=vcount._vote_history)
-            
+                
+                if game_action.id > last_request:
+                    User.add_vhistory_to_queue(action=game_action,
+                                               vhistory=vcount._vote_history,
+                                               victim_is_voter=victim_is_voter)
             
             elif game_action.type == actions.Action.request_count: 
 
@@ -249,23 +255,38 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
 
                         push_vote_count(vote_table=table_to_push,
                                         last_parsed_post=parsed_post)
+
+
+            elif game_action.type == actions.Action.freeze_vote:
+                ## TODO: Move this logic to the vcount?
+                if game_action.author in staff:
+                    if game_action.victim == 'none': ## general freeze
+
+                        for player in vcount._vote_table['voted_by'].unique():
+                            vcount.freeze_player_votes(player)
+                    else:
+                        vcount.freeze_player_votes(game_action.victim)
+
+
           
     ## Finally, push the queue If needed
     User.push_queue()
                 
 def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:int) -> bool:
-    '''
-    Decides if a new vote count should be posted based on:
+    """Decide if a new vote count should be posted based on:
         
     a) Pending GM requests.\n
-    b) How many messages were posted since the last vote count. This is used-defined.
+    b) How many messages were posted since the last vote count. This is used-defined.\n
 
-    Parameters: None
+
+    Args:
+        last_count (int): The id of the last vote count pushed to the game thread.
+        last_post (int): The id of the last post in the game thread.
+        votes_since_update (int): The amount of casted votes since last_count.
 
     Returns:
-    True/False (bool): Whether to push a new vote count.
-    '''
-
+        bool: Whether to push a new vote count.
+    """
     post_update = False
     vote_update = False
 
@@ -278,15 +299,12 @@ def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:i
 
 
 def get_vote_majority() -> int:
-    '''
-    Calculates the amount of votes necessary to reach an absolute majority
-    and lynch a player based on the amount of alive players. 
+    """Calculate the amount of votes necessary to reach an absolute majority
+    and lynch a player based on the amount of alive players.
 
-    Parameters:  \n
-    Returns: \n
-    majority (int): The absolute majority of votes required  to lynch a player.
-    '''
-
+    Returns:
+        int: The absolute majority of votes required  to lynch a player.
+    """
     if (len(player_list) % 2) == 0:
         majority = math.ceil(len(player_list) / 2) + 1
     else:
@@ -294,43 +312,15 @@ def get_vote_majority() -> int:
                 
     return majority
 
-
-def is_lynched(victim:str, vcount: vote_count.VoteCount) -> bool:
-    '''
-    Checks if a given player has received enough votes to be lynched. This
-    function evaluates if a given player accumulates enough votes by calculating
-    the current absolute majority required and adding to it a player specific
-    lynch modifier as defined in the vote rights table.
-
-    Parameters:\n 
-    victim (str): The player who receives the vote.\n
-    Returns:\n 
-    True if the player should be lynched.  False otherwise.
-    '''
-    lynched = False
-
-    # Count this player votes
-    lynch_votes     = vcount.get_victim_current_votes(victim)
-    player_majority = get_vote_majority() + vcount.get_player_mod_to_lynch(victim)
-        
-    if lynch_votes >= player_majority:
-        lynched = True
-        
-    return lynched
-
-    
+  
 def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
-    '''
-    When this function is called, a new User object is built to push a vote
-    count using the current vote table. The object is deleted when the function
-    ends.
+    """Instance a new User object to push a vote count using the current vote table. 
+    The object is deleted afterwards.
 
-    Parameters: \n
-    vote_table: A dataframe with the vote table to parse for the post.\n
-    last_parsed_post: Last post parsed by the bot.\n
-    Returns: None
-    '''
-
+    Args:
+        vote_table (pd.DataFrame): A dataframe with the vote table to parse for the post.
+        last_parsed_post (int):  Last post parsed by the bot.
+    """
     User = user.User(config=settings)
                     
     User.push_votecount(vote_count=vote_table,
@@ -341,6 +331,15 @@ def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
     del User
 
 
+def get_last_bot_cycle() -> int:
+
+    try:
+        previous_vote_history = pd.read_csv('vote_history.csv', sep=',')
+        last_cycle  = previous_vote_history['bot_cycle'].tail(1).values[0]
+        cur_cycle   = last_cycle + 1
+        return cur_cycle
+    except:
+        return 0
 
 if __name__ == "__main__":
 	main()

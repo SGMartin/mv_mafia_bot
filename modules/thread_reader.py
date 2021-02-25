@@ -8,17 +8,19 @@ from modules.game_actions import GameAction
 from states.stage import Stage
 
 
-def get_game_phase(game_thread, game_master) -> tuple:
-    '''
-    Parse the GM posts to figure out if the game is currently on game phase.
-    Parameters: None
+def get_game_phase(game_thread:str, game_master:str) -> tuple:
+    """Parse all the posts from game_master in game_thread to retrieve 
+    the current game phase.
 
-    Returns: an enumeration with the following values:
-    - Day: 1
-    - Night: 2
-    - End: 3
-    '''
-        
+    Args:
+        game_thread (str): The game thread. Must be from mediavida.com.
+        game_master (str): The name of the player acting as the game master.
+
+    Returns:
+        tuple: A tuple where the first value is a member of the enumerator stage.py
+        and the second value, an int representing the post id where the last phase
+        was announced.
+    """        
     post_id = 1
 
     gm_posts         = game_thread + '?u=' + game_master
@@ -61,21 +63,19 @@ def get_game_phase(game_thread, game_master) -> tuple:
     return (Stage.Night, post_id)
 
 
-def get_player_list(game_thread:str, start_day_post_id:int) -> list():
-    '''
-    Based on a given post ID representing the day start, this function parses
-    said post to retrieve a list of alive players by extracting all <ol> and
-    <a> elements. 
+def get_player_list(game_thread:str, start_day_post_id:int) -> list:
+    """Retrieve a list of strings with all the names of the currently alive
+    players by parsing the game post where the list of alive players is announced.
+    This function extracts all <ol> and <a> elements from the first list found
+    on that post. 
 
-    This is based on a day start scheme which must be used for the bot to
-    work properly.
+    Args:
+        game_thread (str): The game thread. Must be from mediavida.com.
+        start_day_post_id (int): The post id to parse.
 
-    Parameters:\n 
-    post_id: The ID of the post which starts the game day.
-
-    Returns:\n 
-    A list (collection) of (string) players.
-    '''
+    Returns:
+        (list): A list of strings with all the parsed player names.
+    """
     start_day_page = get_page_number_from_post(start_day_post_id)
 
     request_url = f'{game_thread}/{start_day_page}'
@@ -102,19 +102,17 @@ def get_player_list(game_thread:str, start_day_post_id:int) -> list():
 
 #TODO: refactor candidate
 def get_last_votecount(game_thread:str, bot_id:str) -> tuple:
-    '''
-    Parses the bot messages in the game thread to get the post id of the 
+    """Parse the bot messages in the game thread to get the post id of the 
     last automated vote count pushed.
-    
-    Parameters:
-    game_thread: A string representing the game thread
-    bot_id: Bot name.
+
+    Args:
+        game_thread (str): The game thread to parse.
+        bot_id (str): Bot name.
 
     Returns:
-    A tuple of two values: an int being the post ID of the last votecount
+        tuple: A tuple of two values: an int being the post ID of the last votecount
     and a boolean indicating if the last votecount was an EoD votecount.
-    '''
-
+    """
     bot_posts         = f'{game_thread}?u={bot_id}'
     bot_posts         = requests.get(bot_posts).text
 
@@ -159,20 +157,18 @@ def get_last_votecount(game_thread:str, bot_id:str) -> tuple:
     return result
 
 # TODO: refactor candidate
-def get_last_vhistory_from(game_thread:str, bot_id:str, player:str) -> tuple:
-    '''
-    Parses the bot messages in the game thread to get the post id of the 
+def get_last_vhistory_from(game_thread:str, bot_id:str, player:str) -> int:
+    """Parse the bot messages in the game thread to get the post id of the 
     last pushed vote history for a given player.
-    
-    Parameters:
-    game_thread: A string representing the game thread
-    bot_id: Bot name.
-    player: The player whose vote history was pushed.
+
+    Args:
+        game_thread (str): The game thread.
+        bot_id (str): Bot name.
+        player (str): The player whose vote history was pushed.
 
     Returns:
-    The post id of the last vote history pushed for the given player
-    '''
-
+        int: The post id of the last vote history pushed for the given player.
+    """
     last_vhistory_id = 1
 
     bot_posts         = f'{game_thread}?u={bot_id}'
@@ -207,19 +203,17 @@ def get_last_vhistory_from(game_thread:str, bot_id:str, player:str) -> tuple:
 
 #TODO: refactor candidate
 def get_last_voters_from(game_thread:str, bot_id:str, player:str) -> tuple:
-    '''
-    Parses the bot messages in the game thread to get the post id of the 
-    last pushed voters history for a given player.
-    
-    Parameters:
-    game_thread: A string representing the game thread
-    bot_id: Bot name.
-    player: The player whose voters history was pushed.
+    """Parse the bot messages in the game thread to get the post id of the 
+    last pushed voter history for a given player.
+
+    Args:
+        game_thread (str): The game thread.
+        bot_id (str): Bot name.
+        player (str): The player whose vote history was pushed.
 
     Returns:
-    The post id of the last vote history pushed for the given player
-    '''
-
+        int: The post id of the last voter history pushed for the given player.
+    """
     last_vhistory_id = 1
 
     bot_posts         = f'{game_thread}?u={bot_id}'
@@ -253,18 +247,16 @@ def get_last_voters_from(game_thread:str, bot_id:str, player:str) -> tuple:
     return last_vhistory_id
 
 
-
-def get_last_post(game_thread) -> int:
-    '''
-    Parses the game thread messages to get the post id of the 
+def get_last_post(game_thread:str) -> int:
+    """Parse the game thread messages to get the post id of the 
     last posted message.
     
-    Parameters: None
+    Args:
+        game_thread (str): The game thread.
 
     Returns:
-    An int representing the post id of the last posted message.
-    '''
-
+        int: The post id of the last posted message.
+    """
     last_page = request_page_count(game_thread)
     request   = f'{game_thread}/{last_page}'
     request   =  requests.get(request).text
@@ -277,15 +269,17 @@ def get_last_post(game_thread) -> int:
 
 
 def get_actions_from_page(game_thread:str, page_to_scan:int, start_from_post:int) -> list():
-    '''
-    Parses a defined page of the game thread and retrieves all h4 
+    """Parse a defined page of the game thread and retrieves all h4 
     HTML elements, which may be commands or votes (actions). 
-    
-    Parameters:\n
-    page_to_scan (int): A game thread page to parse.
 
-    Returns: a list of instances of class action
-    '''
+    Args:
+        game_thread (str): A game thread page to parse.
+        page_to_scan(int): The page to scan from the thread.
+        start_from_post(int): The ID of the first post to parse from the targed page.
+
+    Returns:
+        (list): a list of instances of the game_action class.
+    """
     queue = list()
 
     parsed_url = f'{game_thread}/{page_to_scan}'
@@ -324,35 +318,32 @@ def get_actions_from_page(game_thread:str, page_to_scan:int, start_from_post:int
     return queue
                     
 
-def request_page_count(game_thread):
-    '''
-    Performs an HTML request of the game thread and parses the resulting
+def request_page_count(game_thread:str) ->int:
+    """Perform an HTML request of the game thread and parses the resulting
     HTML code to get the total page length of the thread.
 
-    Parameters: None.
+    Args:
+        game_thread (str): The game thread.
 
-    Returns: 
-    An int representing the total page length of the thread.
-    '''
-        
+    Returns:
+        (int): The total page length of the thread.
+    """        
     request = requests.get(game_thread).text
     page_count = get_page_count_from_page(request)
 
     return page_count
 
 
-def get_page_count_from_page(request_text):
-    '''
-    Parses an used defined HTML code from mediavida.com to extract the page
-    count of a given thread. To do so it uses BeautifulSoup as a parser engine.
+def get_page_count_from_page(request_text:str) -> int:
+    """Parse HTML code from mediavida.com to extract the page count of a given thread. 
+    To do so it uses BeautifulSoup as a parser engine.
 
-    Parameters: 
-    request_text: A string of HTML text from the requests.get library.
+    Args:
+        request_text (str): HTML text from the requests.get library.
 
-    Returns: 
-    An int representing the total page length of the thread.
-    '''
-
+    Returns:
+        int: The total page length of the thread.
+    """
     # Let's try to parse the page count from the bottom  page panel
     page_count = 1
     try:
@@ -368,19 +359,16 @@ def get_page_count_from_page(request_text):
     return page_count
 
 
-
-def get_page_number_from_post(post_id:int):
-    '''
-    Calculate the page number of a given post by assuming each game thread
+def get_page_number_from_post(post_id:int) -> int:
+    """Calculate the page number of a given post by assuming each game thread
     page has 30 posts.
 
-    Parameters: 
-    post_id: The ID of the post of interest.
+    Args:
+        post_id (int): The ID of the post of interest.
 
-    Returns: 
-    An int representing the page number of the input post.
-    '''
-
+    Returns:
+        int: The page number of the input post.
+    """
     page_number = math.ceil(post_id / 30)
 
     return page_number 
