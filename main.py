@@ -54,7 +54,11 @@ def run(update_tick: int):
     Args:
         update_tick (int): Seconds to pass between bot iterations.
     """
-    bot_cyles = 0
+
+    ## Attempt to recover the last bot cycle just in case of an unexpected
+    ## crash. Needed for the vhistory to work correctly.
+    bot_cyles = get_last_bot_cycle()
+
     while(True):
 
         global player_list
@@ -327,6 +331,15 @@ def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
     del User
 
 
+def get_last_bot_cycle() -> int:
+
+    try:
+        previous_vote_history = pd.read_csv('vote_history.csv', sep=',')
+        last_cycle  = previous_vote_history['bot_cycle'].tail(1).values[0]
+        cur_cycle   = last_cycle + 1
+        return cur_cycle
+    except:
+        return 0
 
 if __name__ == "__main__":
 	main()
