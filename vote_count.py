@@ -308,11 +308,11 @@ class  VoteCount:
         """
         if self.player_exists(player=player_to_remove):
 
-            self._votes_by_player = self._vote_table[self._vote_table['player'] == player_to_remove]
-            self._voted_by_player = self._vote_table[self._vote_table['voted_by'] == player_to_remove]
+            self._votes_by_player = self._vote_table['player'] == player_to_remove
+            self._voted_by_player = self._vote_table['voted_by'] == player_to_remove
 
-            self._entries_to_drop = self._vote_table[self._votes_by_player | self._voted_by_player]
-            self._vote_table.drop(self._entries_to_drop, inplace=True)
+            self._entries_to_drop = self._vote_table[self._votes_by_player | self._voted_by_player].index
+            self._vote_table.drop(self._entries_to_drop, axis=0, inplace=True)
 
             logging.info(f'Modkilled:{player_to_remove}')
         else:
