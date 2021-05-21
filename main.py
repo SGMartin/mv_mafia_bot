@@ -200,6 +200,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
 
                     vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
                     allowed_actors.remove(game_action.actor)
+                    player_list.remove(game_action.actor)
 
                     if game_action.victim not in player_list:
                         allowed_actors.append(game_action.victim)
