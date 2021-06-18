@@ -295,6 +295,12 @@ class  VoteCount:
             ## player on the next run.
             if not self.player_exists(player=replaced_by):
                 self._append_to_vote_rights(player=replaced_by, based_on_player=replaced)
+            
+               ## Check if the replaced player was frozen and update
+            if replaced in self.frozen_players:
+                self.frozen_players.remove(replaced)
+                self.frozen_players.append(replaced_by)
+                
         else:
             logging.warning(f'Attempting to replace unknown player {replaced} with {replaced_by}')
 
