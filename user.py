@@ -63,7 +63,7 @@ class User:
             self.clear_queue()
 
 
-    def push_votecount(self, vote_count:pd.DataFrame, alive_players:list, vote_majority:int, post_id:int):
+    def push_votecount(self, vote_count:pd.DataFrame, alive_players:int, vote_majority:int, post_id:int):
         """Generate a new vote count message and push it to the game thread. Skips the queue.
 
         Args:
@@ -136,12 +136,12 @@ class User:
         return self.browser.url
 
 
-    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:list, vote_majority:int, post_id:int) -> str:
+    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int, post_id:int) -> str:
         """Generate a formatted Markdown message representing the vote count results.
 
         Args:
             vote_count (pd.DataFrame): The vote count to parse.
-            alive_players (list): A list of alive players.
+            alive_players (int): The number of alive players.
             vote_majority (int): The current number of votes to reach abs.majority.
             post_id (int): The post id of the last vote parsed in the vote_count.
 
@@ -153,20 +153,7 @@ class User:
 
         self._votes_rank  = self.generate_string_from_vote_count(vote_count)
 
-        # TODO: A lot of shared functionality here. Potential refactor to its 
-        # own method. 
-        self._non_voting_players  = [self._not_voter for self._not_voter
-                                     in alive_players
-                                     if not self._no_voter in vote_count['voted_as'].to_list()]
-
-        self._real_names = vote_count.get_real_names()
-
-        self._non_voting_players = [self._real_names[self._not_voter]
-                                    for self._not_voter
-                                    in self._non_voting_players]
-
-        self._non_voting_chain = f'1. No han votado:{" ".join(self._non_voting_players)}'
-        self._footer  = (f'_Con {len(alive_players)}  jugadores vivos, la mayoría se alcanza con {vote_majority} votos._ \n')
+        self._footer  = (f'_Con {alive_players}  jugadores vivos, la mayoría se alcanza con {vote_majority} votos._ \n')
         self._updated = (f'_Actualizado hasta el mensaje: {post_id}._ \n \n')
         self._bot_ad  = "**Soy un bot de recuento automático. Por favor, no me cites _¡N'wah!_** \n"
 

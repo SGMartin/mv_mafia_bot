@@ -325,7 +325,7 @@ def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
     User = user.User(config=settings)
                     
     User.push_votecount(vote_count=vote_table,
-                        alive_players=player_list,
+                        alive_players=len(player_list),
                         vote_majority=get_vote_majority(),
                         post_id=last_parsed_post)
 
