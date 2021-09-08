@@ -189,7 +189,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
             
             elif game_action.type == actions.Action.lylo:
 
-                logging.info(f'{game_action.author} requested an vcount lock at  {game_action.post_id}')
+                logging.info(f'{game_action.author} requested an vcount lock at  {game_action.id}')
 
                 if game_action.author in staff:
                     vcount.lock_unvotes()
