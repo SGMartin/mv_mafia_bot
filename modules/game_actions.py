@@ -21,6 +21,7 @@ class GameAction:
                                    actions.Action.request_count: self._parse_vote_count_request,
                                    actions.Action.vote_history: self._request_vote_history,
                                    actions.Action.get_voters: self._request_voters_history,
+                                   actions.Action.kill: self._modkill,
                                    actions.Action.modkill: self._modkill,
                                    actions.Action.freeze_vote: self._freeze_votes,
                                    actions.Action.lylo: self._set_lylo}
