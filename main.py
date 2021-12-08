@@ -306,11 +306,11 @@ def get_vote_majority() -> int:
     Returns:
         int: The absolute majority of votes required  to lynch a player.
     """
-    if (len(player_list) % 2) == 0:
-        majority = math.ceil(len(player_list) / 2) + 1
-    else:
-        majority = math.ceil(len(player_list) / 2)
-                
+    majority = math.ceil(len(player_list) /  2)
+
+    if len(player_list) % 2 == 0: 
+        majority += 1  
+
     return majority
 
   
