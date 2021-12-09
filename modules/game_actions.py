@@ -21,10 +21,10 @@ class GameAction:
             actions.Action.unvote: self._parse_unvote,
             actions.Action.replace_player: self._replace_player,
             actions.Action.request_count: self._parse_vote_count_request,
-            actions.Action.vote_history: self._request_vote_history,
-            actions.Action.get_voters: self._request_voters_history,
-            actions.Action.kill: self._modkill,
-            actions.Action.modkill: self._modkill,
+            actions.Action.vote_history: self._set_victim_from_arg,
+            actions.Action.get_voters: self._set_victim_from_arg,
+            actions.Action.kill: self._set_victim_from_arg,
+            actions.Action.modkill: self._set_victim_from_arg,
             actions.Action.freeze_vote: self._freeze_votes,
             actions.Action.lylo: self._set_lylo,
         }
@@ -42,6 +42,7 @@ class GameAction:
                 self.type, self._default_not_found
             )
             self._response(argument=self._contents)
+
 
     def _parse_expression(self, command: str) -> actions.Action:
 
@@ -95,20 +96,14 @@ class GameAction:
         self.actor = argument[1]
         self.victim = argument[-1]
 
-    def _request_vote_history(self, argument: list):
-        self.victim = argument[-1]
-
-    def _request_voters_history(self, argument: list):
-        self.victim = argument[-1]
-
-    def _modkill(self, argument: list):
+    def _set_victim_from_arg(self, argument: list):
         self.victim = argument[-1]
 
     def _set_lylo(self, argument: list):
         self.target_post = self.id
 
     def _freeze_votes(self, argument: list):
-
+        
         self.target_post = self.id
 
         if len(argument) > 1:
