@@ -1,6 +1,7 @@
 import math
 import requests
 import re
+import urllib3
 
 from bs4 import BeautifulSoup
 
@@ -372,3 +373,28 @@ def get_page_number_from_post(post_id:int) -> int:
     page_number = math.ceil(post_id / 30)
 
     return page_number 
+
+
+def get_page_html(url:str) -> str:
+    
+    mv_url = url
+
+    retries = urllib3.util.retry.Retry(
+    total = 3, 
+    status_forcelist = [429, 500, 502, 503, 504],
+    method_whitelist = ["HEAD", "GET", "OPTIONS"],
+    backoff_factor=1
+    )
+
+    timeout_adapter = requests.adapters.HTTPAdapter(max_retries = retries)
+    req = requests.Session()
+    req.mount(mv_url, timeout_adapter)
+    try:
+        response = req.get(mv_url)
+        return response
+
+    except e:
+        print(f"Failed request: {mv_url}")
+        print(e)
+
+
