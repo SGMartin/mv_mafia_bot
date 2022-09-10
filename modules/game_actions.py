@@ -24,6 +24,7 @@ class GameAction:
             actions.Action.get_voters: self._set_victim_from_arg,
             actions.Action.kill: self._set_victim_from_arg,
             actions.Action.modkill: self._set_victim_from_arg,
+            actions.Action.winner: self._set_victim_from_arg,
             actions.Action.freeze_vote: self._freeze_votes,
             actions.Action.lylo: self._set_lylo,
         }

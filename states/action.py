@@ -12,6 +12,7 @@ class Action(enum.Enum):
     unvote         = "desvoto"
     vote           = "voto"
     vote_history   = "historial"
+    winner         = "ganador"
 
 
     
