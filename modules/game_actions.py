@@ -1,7 +1,6 @@
 import logging
-
+import re
 import states.action as actions
-
 
 class GameAction:
     def __init__(self, post_id: int, post_time: int, contents: str, author: str):
@@ -43,6 +42,11 @@ class GameAction:
             )
             self._response(argument=self._contents)
 
+    def _set_victim(self, victim:str):
+        
+        self._new_victim = re.sub("[()]","", victim)
+        self.victim = self._new_victim
+
 
     def _parse_expression(self, command: str) -> actions.Action:
 
@@ -67,7 +71,9 @@ class GameAction:
         if "no" in argument and "linchamiento" in argument:
             self.victim = "no_lynch"
         else:
-            self.victim = argument[-3] if self.alias != self.author else argument[-1]
+            self._this_victim  = argument[-3] if self.alias != self.author else argument[-1]
+        
+        self._set_victim(self._this_victim)
 
     def _parse_unvote(self, argument: list):
 
@@ -93,13 +99,22 @@ class GameAction:
         """
         # for flexibility, the first word after command will be the player
         # who is subbing out and the last word, the substitute.
-        self.actor = argument[1]
-        self.victim = argument[-1]
+        self.actor = re.sub("[()]","", argument[1])
+        self._set_victim(argument[1])
 
-    def _set_victim_from_arg(self, argument: list):
-        self.victim = argument[-1]
+        
+    def _request_vote_history(self, argument:list):
+        self._set_victim(argument[1])
 
-    def _set_lylo(self, argument: list):
+
+    def _request_voters_history(self, argument:list):
+        self._set_victim(argument[1])
+
+
+    def _modkill(self, argument:list):
+        self._set_victim(argument[1])
+    
+    def _set_lylo(self, argument:list):
         self.target_post = self.id
 
     def _freeze_votes(self, argument: list):
@@ -107,7 +122,7 @@ class GameAction:
         self.target_post = self.id
 
         if len(argument) > 1:
-            self.victim = argument[-1]
+            self._set_victim(argument[1])
 
     def _default_not_found(self, argument: str):
         logging.warning(

@@ -168,10 +168,9 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
     allowed_actors      = player_list + staff
 
     for game_action in queue:
-
         if game_action.author in allowed_actors:
 
-            if game_action.type == actions.Action.vote and game_action.victim in player_list:
+            if game_action.type == actions.Action.vote and (game_action.victim in player_list or game_action.victim == "no_lynch"):
 
                 vcount.vote_player(action=game_action)
 
