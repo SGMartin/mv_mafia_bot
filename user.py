@@ -63,7 +63,7 @@ class User:
             self.clear_queue()
 
 
-    def push_votecount(self, vote_count:pd.DataFrame, alive_players:int, vote_majority:int, post_id:int):
+    def push_votecount(self, vote_count:pd.DataFrame, alive_players:pd.DataFrame, vote_majority:int, post_id:int):
         """Generate a new vote count message and push it to the game thread. Skips the queue.
 
         Args:
@@ -136,7 +136,7 @@ class User:
         return self.browser.url
 
 
-    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players:int, vote_majority:int, post_id:int) -> str:
+    def generate_vote_message(self, vote_count: pd.DataFrame, alive_players: pd.DataFrame, vote_majority:int, post_id:int) -> str:
         """Generate a formatted Markdown message representing the vote count results.
 
         Args:
@@ -150,14 +150,16 @@ class User:
         """
 
         self._header = "# Recuento de votos \n"
-
         self._votes_rank  = self.generate_string_from_vote_count(vote_count)
+        self._non_voters = list(set(alive_players) - set(vote_count["voted_by"].values.tolist()))
+        self._non_voters = ", ".join(self._non_voters)
 
-        self._footer  = (f'_Con {alive_players}  jugadores vivos, la mayoría se alcanza con {vote_majority} votos._ \n')
+        self._non_voters_msg = (f"1. **No han votado:** {self._non_voters}.\n")
+        self._footer  = (f'_Con {len(alive_players)} jugadores vivos, la mayoría se alcanza con {vote_majority} votos._ \n')
         self._updated = (f'_Actualizado hasta el mensaje: {post_id}._ \n \n')
         self._bot_ad  = "**Soy un bot de recuento automático. Por favor, no me cites _¡N'wah!_** \n"
 
-        self._message  = self._header + self._votes_rank + '\n' + self._footer + self._updated + self._bot_ad
+        self._message  = self._header + self._votes_rank  + self._non_voters_msg + "\n" + self._footer + self._updated + self._bot_ad
 
         return self._message
 
