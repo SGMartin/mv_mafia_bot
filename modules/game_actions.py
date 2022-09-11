@@ -48,7 +48,9 @@ class GameAction:
         self._new_victim = re.sub("[()]","", victim)
         self.victim = self._new_victim
 
-
+    def _set_victim_from_arg(self, argument: list):
+         self.victim = argument[-1]
+    
     def _parse_expression(self, command: str) -> actions.Action:
 
         self._command = command
