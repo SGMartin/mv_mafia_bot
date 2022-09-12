@@ -403,12 +403,14 @@ class  VoteCount:
     
     def _set_unvote_to_history(self, player:str, victim:str, unvote_post_id):
         if victim == "none":
-            self._unvote = self._vote_history.loc[(self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0)].index[0]
+            self._unvote = self._vote_history.loc[(self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0)]
         else:
-            self._unvote = self._vote_history.loc[(self._vote_history["player"] == victim) & (self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0)].index[0]
-        
-        self._vote_history.loc[self._unvote, "unvoted_at"] = unvote_post_id
-        logging.info(f"Add unvote to history at {self._unvote} for {unvote_post_id}")
+            self._unvote = self._vote_history.loc[(self._vote_history["player"] == victim) & (self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0)]
+            
+        ## If self._unvote is empty, then we have nothing to update
+        if len(self._unvote) > 0:
+            self._vote_history.loc[self._unvote, "unvoted_at"] = unvote_post_id
+            logging.info(f"Add unvote to history at {self._unvote} for {unvote_post_id}")
 
     def _update_vote_history(self):
         """Attempt to update the vote history with the last vote from the vote table.
