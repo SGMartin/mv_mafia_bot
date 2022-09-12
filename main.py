@@ -111,7 +111,7 @@ def run(update_tick: int):
 
                     logging.info(f'Retrieved {len(action_queue)} actions for page {cur_page}')
 
-                    resolve_action_queue(queue=action_queue, vcount=VoteCount, last_count=last_votecount_id)
+                    resolve_action_queue(queue=action_queue, vcount=VoteCount, last_count=last_votecount_id, day_start = current_day_start_post)
 
                 ## get votes casted since last update
                 votes_since_update = len(VoteCount._vote_table[VoteCount._vote_table['post_id'] > last_votecount_id].index)
@@ -156,7 +156,7 @@ def run(update_tick: int):
 
 #TODO: Handle actual permissions without a giant if/else
 #TODO: This func. is prime candidate for refactoring
-def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:int):
+def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:int, day_start:int):
     '''
     Parameters:  \n
     queue: A list of game actions.\n
@@ -246,9 +246,9 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
 
                     if game_action.id > last_count:
                         if game_action.target_post != 0:
-                            table_to_push = vcount._vote_table[vcount._vote_table['post_id'] <= game_action.target_post]
                             parsed_post   = game_action.target_post
-
+                            table_to_push = vcount._vote_history.loc[vcount._vote_history["post_id"] >= day_start]
+                            table_to_push = table_to_push.loc[(table_to_push["post_id"] <= parsed_post) & ((table_to_push["unvoted_at"] == 0) | (table_to_push["unvoted_at"] >= parsed_post))]
                         else:
                             table_to_push = vcount._vote_table
                             parsed_post   = game_action.id

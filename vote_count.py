@@ -9,14 +9,17 @@ class  VoteCount:
     def __init__(self, staff:list, day_start_post:int, bot_cyle:int):
 
         # Initialize empty vote table
-        self._vote_table = pd.DataFrame(columns=['player', 'public_name', 'voted_by', 
-                                                 'voted_as', 'post_id', 'post_time', 'bot_cycle'])
+        self._vote_table = pd.DataFrame(columns=["player",
+        "public_name", "voted_by", 
+        "voted_as", "post_id",
+        "post_time", "bot_cycle"])
     
         try:
-            self._vote_history = pd.read_csv('vote_history.csv', sep=',')
+            self._vote_history = pd.read_csv("vote_history.csv", sep=",")
         except:
             logging.info('Failed to load vote history. Starting from scratch...')
             self._vote_history = self._vote_table.copy()
+            self._vote_history["unvoted_at"] = 0
 
         # Load vote rights table
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
@@ -154,7 +157,7 @@ class  VoteCount:
         """
 
         if self.is_valid_unvote(action.author, action.victim):
-            self._remove_vote(action.author, action.victim)
+            self._remove_vote(action.author, action.victim, action.id)
 
 
     def is_lynched(self, victim:str, current_majority:int) -> bool:
@@ -379,7 +382,7 @@ class  VoteCount:
         logging.info(f'{player} voted {victim} at {post_id}')
 
 
-    def _remove_vote(self, player:str, victim:str):
+    def _remove_vote(self, player:str, victim:str, unvote_post:int):
         """Remove a given vote from the vote table. They are always
         removed from the oldest to the newest casted vote. 
 
@@ -392,11 +395,20 @@ class  VoteCount:
         else:
             self._old_vote = self._vote_table[(self._vote_table['player'] == victim) & (self._vote_table['voted_by'] == player)].index[0]
         
-        ## Always remove the oldest vote casted
+        ## Always remove the oldest vote casted and update vhistory
+        self._set_unvote_to_history(player = player, victim = victim, unvote_post_id = unvote_post)
         self._vote_table.drop(self._old_vote, axis=0, inplace=True)
         
         logging.info(f'{player} unvoted {victim}.')
     
+    def _set_unvote_to_history(self, player:str, victim:str, unvote_post_id):
+        if victim == "none":
+            self._unvote = self._vote_history.loc[(self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0)].index[0]
+        else:
+            self._unvote = self._vote_history.loc[(self._vote_history["player"] == victim) & (self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0)].index[0]
+        
+        self._vote_history.loc[self._unvote, "unvoted_at"] = unvote_post_id
+        logging.info(f"Add unvote to history at {self._unvote} for {unvote_post_id}")
 
     def _update_vote_history(self):
         """Attempt to update the vote history with the last vote from the vote table.
@@ -410,7 +422,7 @@ class  VoteCount:
                                       'voted_by','voted_as',
                                       'post_id','post_time']
 
-            # Check for a perfect match in all columns but bot_cycle
+            # Check for a perfect match in all columns but bot_cycle and unvote
             self._already_appended = self._vote_history[self._columns_to_check] == self._last_vote[self._columns_to_check]
             self._already_appended = self._already_appended.all(axis=1)
     
@@ -419,11 +431,11 @@ class  VoteCount:
 
             ## Two votes sharing every column and cycle come from the same user double voting
             if not self._already_appended or (self._already_appended and self._same_cycle):
-                self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True)
-                
+                self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True) 
         else:
             self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True)
-
+        
+        self._vote_history["unvoted_at"] = self._vote_history["unvoted_at"].fillna(0)
 
     def save_vote_history(self):
         """Save the vote history to a file called vote_history.csv"""
