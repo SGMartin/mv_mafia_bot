@@ -248,7 +248,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
                         if game_action.target_post != 0:
                             parsed_post   = game_action.target_post
                             table_to_push = vcount._vote_history.loc[vcount._vote_history["post_id"] >= day_start]
-                            table_to_push = table_to_push.loc[(table_to_push["post_id"] <= parsed_post) & ((table_to_push["unvoted_at"] == 0) | (table_to_push["unvoted_at"] >= parsed_post))]
+                            table_to_push = table_to_push.loc[(table_to_push["post_id"] <= parsed_post) & ((table_to_push["unvoted_at"] == 0) | (table_to_push["unvoted_at"] > parsed_post))]
                         else:
                             table_to_push = vcount._vote_table
                             parsed_post   = game_action.id
