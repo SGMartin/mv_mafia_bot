@@ -1,12 +1,13 @@
-import logging
+import math
 
+import logging
 import pandas as pd
 
 import modules.game_actions as gm
 
 class  VoteCount:
 
-    def __init__(self, staff:list, day_start_post:int, bot_cyle:int):
+    def __init__(self, staff:list, day_start_post:int, bot_cyle:int, n_players: int):
 
         # Initialize empty vote table
         self._vote_table = pd.DataFrame(columns=["player",
@@ -40,6 +41,8 @@ class  VoteCount:
         self.frozen_players = list() 
 
         self.locked_unvotes = False
+
+        self.current_majority = self.get_vote_majority(n_players = n_players)
         
 
     def player_exists(self, player:str) -> bool:
@@ -70,6 +73,24 @@ class  VoteCount:
         self._real_names.update({'no_lynch':'No linchamiento'})
 
         return self._real_names
+
+
+    def get_vote_majority(self, n_players:int) -> int:
+        """Calculate the amount of votes necessary to reach an absolute majority
+        and lynch a player based on the amount of alive players.
+
+        Args:
+            n_players (int): The amount of alive players.
+
+        Returns:
+            int: The absolute majority of votes required  to lynch a player.
+        """
+        self._majority = math.ceil(n_players /  2)
+
+        if n_players % 2 == 0: 
+            self._majority += 1  
+
+        return self._majority
 
 
     def get_player_current_votes(self, player:str) -> int:
@@ -160,7 +181,7 @@ class  VoteCount:
             self._remove_vote(action.author, action.victim, action.id)
 
 
-    def is_lynched(self, victim:str, current_majority:int) -> bool:
+    def is_lynched(self, victim:str) -> bool:
         """ Check if a given player has received enough votes to be lynched. This
         function evaluates if a given player accumulates enough votes by calculating
         the current absolute majority required and adding to it a player specific
@@ -168,7 +189,6 @@ class  VoteCount:
 
         Args:
             victim (str): The player who receives the vote.
-            current_majority (int): The current number of votes necessary to reach abs. majority.
 
         Returns:
             bool: True if the player should be lynched.  False otherwise.
@@ -177,7 +197,7 @@ class  VoteCount:
         
         # Count this player votes
         self._lynch_votes     = self.get_victim_current_votes(victim)
-        self._player_majority = current_majority + self.get_player_mod_to_lynch(victim)
+        self._player_majority = self.current_majority + self.get_player_mod_to_lynch(victim)
 
         if self._lynch_votes >= self._player_majority:
             self._lynched = True
