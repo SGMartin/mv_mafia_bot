@@ -103,7 +103,7 @@ class GameAction:
         # for flexibility, the first word after command will be the player
         # who is subbing out and the last word, the substitute.
         self.actor = re.sub("[()]","", argument[1])
-        self._set_victim(argument[1])
+        self._set_victim(argument[-1])
 
         
     def _request_vote_history(self, argument:list):
