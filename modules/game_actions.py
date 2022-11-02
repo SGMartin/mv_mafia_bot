@@ -72,7 +72,7 @@ class GameAction:
             self.alias = argument[-1]
 
         if "no" in argument and "linchamiento" in argument:
-            self.victim = "no_lynch"
+            self._this_victim = "no_lynch"
         else:
             self._this_victim  = argument[-3] if self.alias != self.author else argument[-1]
         

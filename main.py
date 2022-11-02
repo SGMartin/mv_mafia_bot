@@ -1,6 +1,5 @@
 from datetime import date
 import logging
-import math
 import os.path
 import time
 import sys
@@ -10,6 +9,7 @@ import pandas as pd
 import config
 import user
 import vote_count
+import player_list as pl
 import modules.thread_reader as tr
 import states.stage as stages
 import states.action as actions
@@ -18,7 +18,6 @@ def main():
 
     ## SETUP GLOBAL VARIABLES ##
     global majority_reached
-    global player_list
     global settings
     global staff
 
@@ -61,7 +60,6 @@ def run(update_tick: int):
 
     while(True):
 
-        global player_list
 
         update_tick     = settings.update_time
 
@@ -71,14 +69,19 @@ def run(update_tick: int):
         if game_status[0] == stages.Stage.Day:
 
             current_day_start_post = game_status[1]
+            player_list    = tr.get_player_list(game_thread=settings.game_thread,
+                                        start_day_post_id=current_day_start_post
+                                        )
+            
+            Players = pl.Players(player_list)
+
             VoteCount              = vote_count.VoteCount(staff=staff,
                                                           day_start_post=current_day_start_post,
-                                                          bot_cyle=bot_cyles)
+                                                          bot_cyle=bot_cyles,
+                                                          n_players=len(Players.players)
+                                                          )
 
             print('We are on day time!')
-
-            player_list    = tr.get_player_list(game_thread=settings.game_thread,
-                                                start_day_post_id=current_day_start_post)
 
             last_votecount = tr.get_last_votecount(game_thread=settings.game_thread,
                                                    bot_id=settings.mediavida_user)
@@ -92,7 +95,7 @@ def run(update_tick: int):
             if not majority_reached:
 
                 last_thread_post  = tr.get_last_post(game_thread=settings.game_thread)
-
+                
                 logging.info(f'Starting vote count. Last vote count: {last_votecount_id}. Last reply: {last_thread_post}')
 
                 start_page = tr.get_page_number_from_post(current_day_start_post)
@@ -111,7 +114,12 @@ def run(update_tick: int):
 
                     logging.info(f'Retrieved {len(action_queue)} actions for page {cur_page}')
 
-                    resolve_action_queue(queue=action_queue, vcount=VoteCount, last_count=last_votecount_id)
+                    resolve_action_queue(queue=action_queue,
+                    vcount=VoteCount,
+                    Players=Players,
+                    last_count=last_votecount_id,
+                    day_start = current_day_start_post
+                    )
 
                 ## get votes casted since last update
                 votes_since_update = len(VoteCount._vote_table[VoteCount._vote_table['post_id'] > last_votecount_id].index)
@@ -123,7 +131,10 @@ def run(update_tick: int):
                 if should_update:
                     logging.info('Pushing a new votecount')
                     push_vote_count(vote_table=VoteCount._vote_table,
-                                    last_parsed_post=last_thread_post)
+                                    alive_players=Players.players,
+                                    last_parsed_post=last_thread_post,
+                                    current_majority=VoteCount.current_majority
+                                    )
                 else:
                     logging.info('Recent votecount detected. ')
                 
@@ -156,25 +167,24 @@ def run(update_tick: int):
 
 #TODO: Handle actual permissions without a giant if/else
 #TODO: This func. is prime candidate for refactoring
-def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:int):
+def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.Players, last_count:int, day_start:int):
     '''
     Parameters:  \n
     queue: A list of game actions.\n
     vcount: The current Vote Count.\n
     '''
-    global player_list
-    User = user.User(config=settings)
 
-    allowed_actors      = player_list + staff
+    User    = user.User(config=settings)
+    allowed_actors = Players.players + staff
 
     for game_action in queue:
         if game_action.author in allowed_actors:
 
-            if game_action.type == actions.Action.vote and (game_action.victim in player_list or game_action.victim == "no_lynch"):
+            if game_action.type == actions.Action.vote and (Players.player_exists(game_action.victim) or game_action.victim == "no_lynch"):
 
                 vcount.vote_player(action=game_action)
 
-                if vcount.is_lynched(victim=game_action.victim, current_majority=get_vote_majority()):
+                if vcount.is_lynched(victim=game_action.victim):
 
                     global majority_reached
                     majority_reached = True
@@ -195,27 +205,18 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
 
             elif game_action.type == actions.Action.replace_player and game_action.author in staff:
 
-                if game_action.actor in player_list:
+                Players.replace_player(player_out = game_action.actor,player_in = game_action.victim)
+                vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
+                allowed_actors.remove(game_action.actor)
 
-                    vcount.replace_player(replaced=game_action.actor, replaced_by=game_action.victim)
-                    allowed_actors.remove(game_action.actor)
-                    player_list.remove(game_action.actor)
-
-                    if game_action.victim not in player_list:
-                        allowed_actors.append(game_action.victim)
-                        player_list.append(game_action.victim)
+                if game_action.victim not in allowed_actors:
+                    allowed_actors.append(game_action.victim)
  
-                    logging.info(f'{game_action.actor} replaced by {game_action.victim} at {game_action.id}.')
-                else:
-                    logging.info(f'Skipping replacement for player {game_action.actor} by {game_action.victim} at {game_action.id}')
-
-
             elif game_action.type == actions.Action.modkill or game_action.type == actions.Action.kill or game_action.type == actions.Action.winner:
                 if game_action.author in staff:
-                    if game_action.victim in player_list:
-                        player_list.remove(game_action.victim)
-                        vcount.remove_player(game_action.victim)
-
+                    Players.remove_player(game_action.victim)
+                    vcount.remove_player(game_action.victim)
+                   
             elif game_action.type == actions.Action.vote_history or game_action.type == actions.Action.get_voters:
 
                 real_names = vcount.get_real_names()
@@ -246,15 +247,18 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, last_count:i
 
                     if game_action.id > last_count:
                         if game_action.target_post != 0:
-                            table_to_push = vcount._vote_table[vcount._vote_table['post_id'] <= game_action.target_post]
                             parsed_post   = game_action.target_post
-
+                            table_to_push = vcount._vote_history.loc[vcount._vote_history["post_id"] >= day_start]
+                            table_to_push = table_to_push.loc[(table_to_push["post_id"] <= parsed_post) & ((table_to_push["unvoted_at"] == 0) | (table_to_push["unvoted_at"] > parsed_post))]
                         else:
                             table_to_push = vcount._vote_table
                             parsed_post   = game_action.id
 
                         push_vote_count(vote_table=table_to_push,
-                                        last_parsed_post=parsed_post)
+                                        alive_players=Players.players,
+                                        last_parsed_post=parsed_post,
+                                        current_majority=vcount.current_majority
+                                        )
 
 
             elif game_action.type == actions.Action.freeze_vote:
@@ -297,35 +301,22 @@ def update_thread_vote_count(last_count:int, last_post:int, votes_since_update:i
 
     return (vote_update | post_update)
 
-
-def get_vote_majority() -> int:
-    """Calculate the amount of votes necessary to reach an absolute majority
-    and lynch a player based on the amount of alive players.
-
-    Returns:
-        int: The absolute majority of votes required  to lynch a player.
-    """
-    majority = math.ceil(len(player_list) /  2)
-
-    if len(player_list) % 2 == 0: 
-        majority += 1  
-
-    return majority
-
   
-def push_vote_count(vote_table: pd.DataFrame, last_parsed_post: int):
+def push_vote_count(vote_table: pd.DataFrame, alive_players: list, last_parsed_post: int, current_majority: int):
     """Instance a new User object to push a vote count using the current vote table. 
     The object is deleted afterwards.
 
     Args:
         vote_table (pd.DataFrame): A dataframe with the vote table to parse for the post.
+        alive_players (list): The list of alive players.
         last_parsed_post (int):  Last post parsed by the bot.
+        current_majority (int): The n. votes to reach majority.
     """
     User = user.User(config=settings)
                     
     User.push_votecount(vote_count=vote_table,
-                        alive_players=player_list,
-                        vote_majority=get_vote_majority(),
+                        alive_players=alive_players,
+                        vote_majority=current_majority,
                         post_id=last_parsed_post)
 
     del User

@@ -1,22 +1,26 @@
-import logging
+import math
 
+import logging
 import pandas as pd
 
 import modules.game_actions as gm
 
 class  VoteCount:
 
-    def __init__(self, staff:list, day_start_post:int, bot_cyle:int):
+    def __init__(self, staff:list, day_start_post:int, bot_cyle:int, n_players: int):
 
         # Initialize empty vote table
-        self._vote_table = pd.DataFrame(columns=['player', 'public_name', 'voted_by', 
-                                                 'voted_as', 'post_id', 'post_time', 'bot_cycle'])
+        self._vote_table = pd.DataFrame(columns=["player",
+        "public_name", "voted_by", 
+        "voted_as", "post_id",
+        "post_time", "bot_cycle"])
     
         try:
-            self._vote_history = pd.read_csv('vote_history.csv', sep=',')
+            self._vote_history = pd.read_csv("vote_history.csv", sep=",")
         except:
             logging.info('Failed to load vote history. Starting from scratch...')
             self._vote_history = self._vote_table.copy()
+            self._vote_history["unvoted_at"] = 0
 
         # Load vote rights table
         self.vote_rights = pd.read_csv('vote_config.csv', sep=',')
@@ -37,6 +41,8 @@ class  VoteCount:
         self.frozen_players = list() 
 
         self.locked_unvotes = False
+
+        self.current_majority = self.get_vote_majority(n_players = n_players)
         
 
     def player_exists(self, player:str) -> bool:
@@ -67,6 +73,24 @@ class  VoteCount:
         self._real_names.update({'no_lynch':'No linchamiento'})
 
         return self._real_names
+
+
+    def get_vote_majority(self, n_players:int) -> int:
+        """Calculate the amount of votes necessary to reach an absolute majority
+        and lynch a player based on the amount of alive players.
+
+        Args:
+            n_players (int): The amount of alive players.
+
+        Returns:
+            int: The absolute majority of votes required  to lynch a player.
+        """
+        self._majority = math.ceil(n_players /  2)
+
+        if n_players % 2 == 0: 
+            self._majority += 1  
+
+        return self._majority
 
 
     def get_player_current_votes(self, player:str) -> int:
@@ -154,10 +178,10 @@ class  VoteCount:
         """
 
         if self.is_valid_unvote(action.author, action.victim):
-            self._remove_vote(action.author, action.victim)
+            self._remove_vote(action.author, action.victim, action.id)
 
 
-    def is_lynched(self, victim:str, current_majority:int) -> bool:
+    def is_lynched(self, victim:str) -> bool:
         """ Check if a given player has received enough votes to be lynched. This
         function evaluates if a given player accumulates enough votes by calculating
         the current absolute majority required and adding to it a player specific
@@ -165,7 +189,6 @@ class  VoteCount:
 
         Args:
             victim (str): The player who receives the vote.
-            current_majority (int): The current number of votes necessary to reach abs. majority.
 
         Returns:
             bool: True if the player should be lynched.  False otherwise.
@@ -174,7 +197,7 @@ class  VoteCount:
         
         # Count this player votes
         self._lynch_votes     = self.get_victim_current_votes(victim)
-        self._player_majority = current_majority + self.get_player_mod_to_lynch(victim)
+        self._player_majority = self.current_majority + self.get_player_mod_to_lynch(victim)
 
         if self._lynch_votes >= self._player_majority:
             self._lynched = True
@@ -379,7 +402,7 @@ class  VoteCount:
         logging.info(f'{player} voted {victim} at {post_id}')
 
 
-    def _remove_vote(self, player:str, victim:str):
+    def _remove_vote(self, player:str, victim:str, unvote_post:int):
         """Remove a given vote from the vote table. They are always
         removed from the oldest to the newest casted vote. 
 
@@ -392,11 +415,22 @@ class  VoteCount:
         else:
             self._old_vote = self._vote_table[(self._vote_table['player'] == victim) & (self._vote_table['voted_by'] == player)].index[0]
         
-        ## Always remove the oldest vote casted
+        ## Always remove the oldest vote casted and update vhistory
+        self._set_unvote_to_history(player = player, victim = victim, unvote_post_id = unvote_post)
         self._vote_table.drop(self._old_vote, axis=0, inplace=True)
         
         logging.info(f'{player} unvoted {victim}.')
     
+    def _set_unvote_to_history(self, player:str, victim:str, unvote_post_id):
+        if victim == "none":
+            self._unvote = self._vote_history.loc[(self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0) & (self._vote_history["post_id"] < unvote_post_id)]
+        else:
+            self._unvote = self._vote_history.loc[(self._vote_history["player"] == victim) & (self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0) & (self._vote_history["post_id"] < unvote_post_id)]
+            
+        ## If self._unvote is empty, then we have nothing to update
+        if len(self._unvote) > 0:
+            self._vote_history.loc[self._unvote.index[0], "unvoted_at"] = unvote_post_id
+            logging.info(f"Add unvote to history at {self._unvote} for {unvote_post_id}")
 
     def _update_vote_history(self):
         """Attempt to update the vote history with the last vote from the vote table.
@@ -410,7 +444,7 @@ class  VoteCount:
                                       'voted_by','voted_as',
                                       'post_id','post_time']
 
-            # Check for a perfect match in all columns but bot_cycle
+            # Check for a perfect match in all columns but bot_cycle and unvote
             self._already_appended = self._vote_history[self._columns_to_check] == self._last_vote[self._columns_to_check]
             self._already_appended = self._already_appended.all(axis=1)
     
@@ -419,11 +453,11 @@ class  VoteCount:
 
             ## Two votes sharing every column and cycle come from the same user double voting
             if not self._already_appended or (self._already_appended and self._same_cycle):
-                self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True)
-                
+                self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True) 
         else:
             self._vote_history = self._vote_history.append(self._last_vote, ignore_index=True)
-
+        
+        self._vote_history["unvoted_at"] = self._vote_history["unvoted_at"].fillna(0)
 
     def save_vote_history(self):
         """Save the vote history to a file called vote_history.csv"""
