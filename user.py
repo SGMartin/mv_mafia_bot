@@ -79,7 +79,15 @@ class User:
                                                            post_id=post_id)
         self.post(self._message_to_post)
 
-    
+    def push_new_mayor(self, new_mayor:str):
+        self._header = '# ¡El alcalde del pueblo aparece! \n'
+        self._body = f"**¡{new_mayor} se revela para liderar al pueblo!** \n"
+        self._footer = f"@{new_mayor} desde ahora cuentas con 3 votos. Úsalos con sabiduría."
+
+        self._message_to_post = self._header + self._body + self._footer
+        self.post(self._message_to_post)
+
+        
     def push_lynch(self, last_votecount: pd.DataFrame, victim:str, post_id:int):
         """Generate a player lynched message and immediately post it the game thread. Skips the queue.
 

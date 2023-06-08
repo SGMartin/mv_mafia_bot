@@ -32,6 +32,14 @@ class  VoteCount:
         # use lowercase player names as keys, player column as true names
         self.vote_rights.index = self.vote_rights['player'].str.lower()
 
+        # get the major (if any)
+        self.vote_rights["is_mayor"] = self.vote_rights["is_mayor"].astype(bool)
+
+        if self.vote_rights.loc[:, "is_mayor"].any():
+            self.mayor = self.vote_rights.loc[self.vote_rights["is_mayor"], "player"].iloc[0]
+        else:
+            self.mayor = None
+
         self.staff = staff
 
         self.lynched_player = ''
@@ -376,6 +384,26 @@ class  VoteCount:
             self.locked_unvotes = True
             logging.info('The vote count has been locked')
 
+    def update_vote_limits(self, player:str, new_limit:int):
+        """Change the max. amount of votes for a given player
+
+        Args:
+            player (str): The player whose vote limit will be updated
+            new_limit (int): The new limit. If lower than 0, it will be set to 0
+        """
+        if self.player_exists(player):
+            self._new_limit = new_limit if new_limit >= 0 else 0
+            self._old_limit = self.vote_rights.loc[player, "allowed_votes"]
+
+            if self._old_limit != self._new_limit:
+                self.vote_rights.loc[player, 'allowed_votes'] = self._new_limit
+                self.vote_rights.to_csv("vote_config.csv", sep=",", index=False, header=True)
+            else:
+                logging.info(f"Ignoring vote rights update for player {player}")
+        else:
+            logging.warning(f"Attempting to update vote limit for unknown id: {player}.")
+
+            
 
     #TODO: Awful function, fix it
     def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, victim_alias:str, voted_as:str):
@@ -489,3 +517,4 @@ class  VoteCount:
         #TODO: Find  a better way to do this. 
         logging.info(f'Updated vote_rights.csv with {player}')
         self.vote_rights.to_csv('vote_config.csv', sep=',', index=False, header=True)
+

@@ -10,6 +10,7 @@ class Action(enum.Enum):
     replace_player = "reemplazo"
     unknown        = "unknown"
     unvote         = "desvoto"
+    reveal         = "revelar"
     vote           = "voto"
     vote_history   = "historial"
     winner         = "ganador"
