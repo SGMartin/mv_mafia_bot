@@ -271,7 +271,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
                     else:
                         vcount.freeze_player_votes(game_action.victim)
             
-            elif game_action.type == actions.Action().reveal:
+            elif game_action.type == actions.Action.reveal:
                 if game_action.author == vcount.mayor: ## mayor?
                     if vcount.vote_rights.loc[game_action.author, "allowed_votes"] < 3: ## nope, not revealed
                         vcount.update_vote_limits(player=game_action.author, new_limit=3)
