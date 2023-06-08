@@ -36,7 +36,7 @@ class  VoteCount:
         self.vote_rights["is_mayor"] = self.vote_rights["is_mayor"].astype(bool)
 
         if self.vote_rights.loc[:, "is_mayor"].any():
-            self.mayor = self.vote_rights.loc[self.vote_rights["is_mayor"], "player"].iloc[0]
+            self.mayor = self.vote_rights.loc[self.vote_rights["is_mayor"], :].index[0]
         else:
             self.mayor = None
 

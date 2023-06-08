@@ -275,7 +275,9 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
                 if game_action.author == vcount.mayor: ## mayor?
                     if vcount.vote_rights.loc[game_action.author, "allowed_votes"] < 3: ## nope, not revealed
                         vcount.update_vote_limits(player=game_action.author, new_limit=3)
-                        User.push_new_mayor(new_mayor=vcount.get_real_names()[game_action.author])
+                        announce_mayor(new_mayor=vcount.get_real_names()[game_action.author])
+
+
 
           
     ## Finally, push the queue If needed
@@ -327,10 +329,14 @@ def push_vote_count(vote_table: pd.DataFrame, alive_players: list, last_parsed_p
     del User
 
 def announce_mayor(new_mayor: str):
+    """Push a new mayor announcement to the bot as a priority message.
 
+    Args:
+        new_mayor (str): Mayor name
+    """
     User = user.User(config=settings)
-    User.announce_mayor(player_name=new_mayor)
-
+    User.push_new_mayor(new_mayor=new_mayor)
+    del User
 
 def get_last_bot_cycle() -> int:
 

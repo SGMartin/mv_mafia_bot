@@ -81,7 +81,7 @@ class User:
 
     def push_new_mayor(self, new_mayor:str):
         self._header = '# ¡El alcalde del pueblo aparece! \n'
-        self._body = f"**¡{new_mayor} se revela para liderar al pueblo!** \n"
+        self._body = f"**¡{new_mayor} se revela para liderar al pueblo!** \n\n"
         self._footer = f"@{new_mayor} desde ahora cuentas con 3 votos. Úsalos con sabiduría."
 
         self._message_to_post = self._header + self._body + self._footer
