@@ -78,7 +78,7 @@ class Players:
                         if self._last_shot != self._post_id or self._double_shooter:
                             self._valid_shot = True
                     else:
-                        logging.info(f"{self._attacker} has not rights to shoot!")
+                        logging.info(f"{self._attacker} has no rights to shoot!")
                 except:
                     logging.ERROR(f"{self._attacker} or {self._victim} rights not found in attack table. Invalid shot")
             else:
