@@ -351,9 +351,9 @@ class  VoteCount:
             self._entries_to_drop = self._vote_table[self._votes_by_player | self._voted_by_player].index
             self._vote_table.drop(self._entries_to_drop, axis=0, inplace=True)
 
-            logging.info(f'Modkilled:{player_to_remove}')
+            logging.info(f'Remove:{player_to_remove}')
         else:
-            logging.warning(f'Attempting to modkill invalid player {player_to_remove}')
+            logging.warning(f'Attempting to remove invalid player from the vcount {player_to_remove}')
 
 
     def freeze_player_votes(self, frozen_player:str):

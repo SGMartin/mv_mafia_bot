@@ -247,6 +247,48 @@ def get_last_voters_from(game_thread:str, bot_id:str, player:str) -> tuple:
 
     return last_vhistory_id
 
+#TODO: refactor candidate
+def get_last_shot_by(game_thread:str, bot_id:str, player:str) -> tuple:
+    """Parse the bot messages in the game thread to get the post id of the 
+    last pushed shot for a given player
+
+    Args:
+        game_thread (str): The game thread.
+        bot_id (str): Bot name.
+        player (str): The player whose vote history was pushed.
+
+    Returns:
+        int: The post id of the last voter history pushed for the given player.
+    """
+    last_shot_fired = 1
+
+    bot_posts         = f'{game_thread}?u={bot_id}'
+    bot_posts         = requests.get(bot_posts).text
+  
+    # Get total gm pages
+    bot_pages = get_page_count_from_page(bot_posts)
+
+    # We'll start looping from the last page to the previous one
+    for pagenum in range(bot_pages, 0, -1):
+
+        request      = f'{game_thread}?u={bot_id}&pagina={pagenum}'
+        request      = requests.get(request).text
+        current_page = BeautifulSoup(request, 'html.parser')
+
+        #TODO: log these iterations?
+        posts        = current_page.find_all('div', attrs={'data-num':True, 'data-autor':True})
+          
+        for post in reversed(posts): # from more recent to older posts
+
+            headers = post.find_all('h2') #get all GM h2 headers
+
+            for pcount in headers:   
+                shot_post = re.findall(f'^¡{player} tiene un arma!$', pcount.text)
+                if shot_post:
+                    last_shot_fired = int(post['data-num'])
+                    return last_shot_fired
+
+    return last_shot_fired
 
 def get_last_post(game_thread:str) -> int:
     """Parse the game thread messages to get the post id of the 

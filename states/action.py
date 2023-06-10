@@ -14,6 +14,9 @@ class Action(enum.Enum):
     vote           = "voto"
     vote_history   = "historial"
     winner         = "ganador"
+    shoot          = "disparo"
+    revive         = "reanimar"
+
 
 
     
