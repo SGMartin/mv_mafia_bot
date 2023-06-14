@@ -79,7 +79,34 @@ class User:
                                                            post_id=post_id)
         self.post(self._message_to_post)
 
-    
+    def push_new_mayor(self, new_mayor:str):
+        self._header = '# ¡El alcalde del pueblo aparece! \n'
+        self._body = f"**¡{new_mayor} se revela para liderar al pueblo!** \n\n"
+        self._footer = f"@{new_mayor} desde ahora cuentas con 3 votos. Úsalos con sabiduría."
+
+        self._message_to_post = self._header + self._body + self._footer
+        self.post(self._message_to_post)
+
+
+    def queue_shooting(self, attacker:str, victim:str, is_dead:bool):
+        """Push a new shootoing event immediately, skipping the queue
+
+        Args:
+            attacker (str): The attacking player.
+            victim (str): The player who has been shot.
+            is_dead (bool): Is the victim dead?
+        """
+        self._header = f'# ¡{attacker} tiene un arma! \n'
+        self._body = f"_¡{attacker} revela un arma y dispara a {victim} ante la atónita mirada de la multitud!_ \n\n"
+        
+        if is_dead:
+            self._footer = f"**¡{victim} ha sido asesinado!**\n [Spoiler={victim} era...]**Pueblo vanilla**[/spoiler]\n\n @{self.game_master}, se ha producido un asesinato."
+        else:
+            self._footer = f"**¡{victim} sigue en pie!**"
+
+        self._message_to_post = self._header + self._body + self._footer
+        self._queue.append(self._message_to_post)
+        
     def push_lynch(self, last_votecount: pd.DataFrame, victim:str, post_id:int):
         """Generate a player lynched message and immediately post it the game thread. Skips the queue.
 

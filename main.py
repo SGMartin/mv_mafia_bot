@@ -73,7 +73,7 @@ def run(update_tick: int):
                                         start_day_post_id=current_day_start_post
                                         )
             
-            Players = pl.Players(player_list)
+            Players = pl.Players(player_list, bot_cyles)
 
             VoteCount              = vote_count.VoteCount(staff=staff,
                                                           day_start_post=current_day_start_post,
@@ -270,9 +270,44 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
                             vcount.freeze_player_votes(player)
                     else:
                         vcount.freeze_player_votes(game_action.victim)
+            
+            elif game_action.type == actions.Action.reveal:
+                if game_action.author == vcount.mayor: ## mayor?
+                    if vcount.vote_rights.loc[game_action.author, "allowed_votes"] < 3: ## nope, not revealed
+                        vcount.update_vote_limits(player=game_action.author, new_limit=3)
+                        announce_mayor(new_mayor=vcount.get_real_names()[game_action.author])
 
 
-          
+            elif game_action.type == actions.Action.revive and game_action.author in staff:
+                if vcount.player_exists(game_action.victim.lower()): ## make sure this guy actually played and has rights
+                    Players.revive_player(game_action.victim)
+                else:
+                    logging.warning(f"Attempting to revive invalid player {game_action.victim}")
+
+            elif game_action.type == actions.Action.shoot:
+                if Players.player_exists(game_action.victim) and game_action.victim not in staff:
+                    was_valid_shot, is_dead_victim = Players.shoot_player(game_action)
+                    if was_valid_shot:
+                        if is_dead_victim:
+                            vcount.remove_player(game_action.victim)
+                        
+
+                        attacker_real_name = vcount.get_real_names()[game_action.author]
+                        victim_real_name = vcount.get_real_names()[game_action.victim]
+
+                        ## check if the bot already announced this
+                        last_shot_fired = tr.get_last_shot_by(
+                            game_thread=settings.game_thread,
+                            bot_id=settings.mediavida_user,
+                            player=attacker_real_name
+                            )
+
+                        if game_action.id > last_shot_fired: 
+                            User.queue_shooting(attacker=attacker_real_name,victim=victim_real_name,is_dead=is_dead_victim)
+                else:
+                    logging.info(f"Invalid victim:{game_action.victim} at {game_action.id}")
+            
+     
     ## Finally, push the queue If needed
     User.push_queue()
                 
@@ -319,6 +354,16 @@ def push_vote_count(vote_table: pd.DataFrame, alive_players: list, last_parsed_p
                         vote_majority=current_majority,
                         post_id=last_parsed_post)
 
+    del User
+
+def announce_mayor(new_mayor: str):
+    """Push a new mayor announcement to the bot as a priority message.
+
+    Args:
+        new_mayor (str): Mayor name
+    """
+    User = user.User(config=settings)
+    User.push_new_mayor(new_mayor=new_mayor)
     del User
 
 

@@ -27,6 +27,9 @@ class GameAction:
             actions.Action.winner: self._set_victim_from_arg,
             actions.Action.freeze_vote: self._freeze_votes,
             actions.Action.lylo: self._set_lylo,
+            actions.Action.reveal: self._reveal_mayor,
+            actions.Action.shoot: self._set_victim_from_arg,
+            actions.Action.revive: self._set_victim_from_arg,
         }
 
         # Parse command type
@@ -126,6 +129,9 @@ class GameAction:
 
         if len(argument) > 1:
             self._set_victim(argument[1])
+    
+    def _reveal_mayor(self, argument: list):
+        self.actor = self.author
 
     def _default_not_found(self, argument: str):
         logging.warning(
