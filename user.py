@@ -20,19 +20,11 @@ class User:
 
         # Attempt to log into MV with these credentials.
         #TODO: Log errors here
-
-        self.thread_url = config.game_thread
-        self.thread_id  = config.thread_id
-
-        self.user_id     = config.mediavida_user
-        self.password    = config.mediavida_pwd
-        self.game_master = config.game_master
-
-        self._queue      = list()
-
         self.config = config
-        self.browser = self.login(self.user_id, self.password)
-       
+        self.browser = self.login(self.config.mediavida_user, self.config.mediavida_pwd)
+
+        # Init internal queue
+        self._queue      = list()
 
     def clear_queue(self):
         """Empty the queue of messages to push to the game thread."""
@@ -104,7 +96,7 @@ class User:
         self._body = f"_¡{attacker} revela un arma y dispara a {victim} ante la atónita mirada de la multitud!_ \n\n"
         
         if is_dead:
-            self._footer = f"**¡{victim} ha sido asesinado!**\n [Spoiler={victim} era...]**Pueblo vanilla**[/spoiler]\n\n @{self.game_master}, se ha producido un asesinato."
+            self._footer = f"**¡{victim} ha sido asesinado!**\n [Spoiler={victim} era...]**Pueblo vanilla**[/spoiler]\n\n @{self.config.game_master}, se ha producido un asesinato."
         else:
             self._footer = f"**¡{victim} sigue en pie!**"
 
@@ -158,7 +150,7 @@ class User:
         Returns:
             [Robobrowser]: The resolved form.
         """
-        self.browser.open(f'http://www.mediavida.com/foro/post.php?tid={self.thread_id}')
+        self.browser.open(f'http://www.mediavida.com/foro/post.php?tid={self.config.thread_id}')
         self._post  = self.browser.get_form(id='postear')
         self._post['cuerpo'].value = message
         
@@ -218,7 +210,7 @@ class User:
         self._final_votecount = self.generate_string_from_vote_count(vote_table=last_votecount)
 
         self._no_votes = f'**Ya no se admiten más votos.** \n \n'
-        self._footer   = f'@{self.game_master}, el pueblo ha hablado. \n'
+        self._footer   = f'@{self.config.game_master}, el pueblo ha hablado. \n'
 
         self._message = self._header + self._final_votecount + '\n' + self._announcement + self._no_votes + self._footer
 
@@ -251,7 +243,7 @@ class User:
             if self._player == 'no_lynch':
                 self._player = 'No linchamiento'
 
-            self._vote_string  =  f'1. [url={self.thread_url}?u={self._player}]**{self._player}**[/url]: {self._votes} (_{self._voters}_) \n'  
+            self._vote_string  =  f'1. [url={self.config.game_thread}?u={self._player}]**{self._player}**[/url]: {self._votes} (_{self._voters}_) \n'  
             self._vote_rank    = self._vote_rank + self._vote_string
 
         return self._vote_rank
@@ -288,7 +280,7 @@ class User:
         if len(self._votes.index) == 0:
             self._markdown_table = 'No se han encontrado votos.\n'
         else:
-            self._votes['post_link'] = [f'[{x}]({self.thread_url}/{tr.get_page_number_from_post(x)}#{x})' for x in self._votes['post_id']]
+            self._votes['post_link'] = [f'[{x}]({self.config.game_thread}/{tr.get_page_number_from_post(x)}#{x})' for x in self._votes['post_id']]
 
             # For each player, create a column of type list with all the posts where they have been voted
             self._votes_post_id = self._votes.groupby(self._target_column)['post_link'].apply(list).reset_index(name='posts')
