@@ -58,6 +58,10 @@ def run(update_tick: int):
     ## crash. Needed for the vhistory to work correctly.
     bot_cyles = get_last_bot_cycle()
 
+    ## check if this is the first bot activation. Don't trust cycles
+    if bot_cyles == 0:
+        announce_bot_activation()
+
     while(True):
 
 
@@ -366,6 +370,13 @@ def announce_mayor(new_mayor: str):
     User.push_new_mayor(new_mayor=new_mayor)
     del User
 
+
+def announce_bot_activation():
+    """ Announce bot activation to the thread
+    """
+    User = user.User(config=settings)
+    User.push_welcome_message()
+    del user
 
 def get_last_bot_cycle() -> int:
 
