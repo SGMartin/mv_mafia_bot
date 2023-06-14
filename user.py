@@ -30,6 +30,7 @@ class User:
 
         self._queue      = list()
 
+        self.config = config
         self.browser = self.login(self.user_id, self.password)
        
 
@@ -87,6 +88,9 @@ class User:
         self._message_to_post = self._header + self._body + self._footer
         self.post(self._message_to_post)
 
+    def push_welcome_message(self):
+        self._message_to_post = self.generate_initial_msg(this_cfg=self.config)
+        self.post(self._message_to_post)
 
     def queue_shooting(self, attacker:str, victim:str, is_dead:bool):
         """Push a new shootoing event immediately, skipping the queue
@@ -313,4 +317,22 @@ class User:
 
         self._footer  = f'Solicitado por @{requested_by}'
         self._message = self._header + self._markdown_table + self._footer
+        return self._message
+
+
+    def generate_initial_msg(self, this_cfg: object) -> str:
+        """
+            Generate initial bot activation message string"
+        """
+        self._header = "# ¡Bot activado con éxito!\n"
+        self._subheader = "## Parámetros de la partida\n\n"
+
+        self._gm_item= f"* **GM**: {this_cfg.game_master}\n*"
+        self._mods_item = f"* **Moderadores:**{','.join(this_cfg.moderators)}\n"
+        self._frequencies = f"* **Frecuencias de recuento**: {this_cfg.posts_until_update} mensajes, {this_cfg.votes_until_update} votos.\n"
+        self._autoflip = f"* **Resolución de linchamiento automática**: No.\n"
+
+        self._cite_gm = f"@{this_cfg.game_master} ya estoy en funcionamiento."
+
+        self._message = self._header + self._subheader + self._gm_item + self._mods_item + self._frequencies + self._autoflip + self._cite_gm
         return self._message
