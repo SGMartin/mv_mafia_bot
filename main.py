@@ -376,7 +376,7 @@ def announce_bot_activation():
     """
     User = user.User(config=settings)
     User.push_welcome_message()
-    del user
+    del User
 
 def get_last_bot_cycle() -> int:
 

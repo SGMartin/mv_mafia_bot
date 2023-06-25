@@ -320,8 +320,8 @@ class User:
         self._subheader = "## Parámetros de la partida\n\n"
 
         self._gm_item= f"* **GM**: {this_cfg.game_master}\n*"
-        self._mods_item = f"* **Moderadores:**{','.join(this_cfg.moderators)}\n"
-        self._frequencies = f"* **Frecuencias de recuento**: {this_cfg.posts_until_update} mensajes, {this_cfg.votes_until_update} votos.\n"
+        self._mods_item = f"* **Moderadores**: {','.join(this_cfg.moderators)}\n"
+        self._frequencies = f"* **Frecuencias de recuento**: {this_cfg.posts_until_update} mensajes, {this_cfg.votes_until_update} voto(s).\n"
         self._autoflip = f"* **Resolución de linchamiento automática**: No.\n"
 
         self._cite_gm = f"@{this_cfg.game_master} ya estoy en funcionamiento."
