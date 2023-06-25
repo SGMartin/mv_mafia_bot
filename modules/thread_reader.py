@@ -1,6 +1,7 @@
 import math
 import requests
 import re
+import unicodedata
 import urllib3
 
 from bs4 import BeautifulSoup
@@ -349,7 +350,7 @@ def get_actions_from_page(game_thread:str, page_to_scan:int, start_from_post:int
 
             for command in post_commands:
 
-                command = command.text.lower()
+                command = unicodedata.normalize("NFKC", command.text.lower())
 
                 Action  = GameAction(post_id=post_id,
                                      post_time=post_time,
