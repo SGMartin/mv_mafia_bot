@@ -48,7 +48,8 @@ class Players:
             self.players.append(player_in)
 
             ## copy this player and keep it's attack and defense rights
-            self._append_to_attack_table(player=player_in, based_on_player=player_out)
+            if player_in not in self.attack_table.index.tolist():
+                self._append_to_attack_table(player=player_in, based_on_player=player_out)
         else:
             logging.info("Ignoring replacement {player_out} by {player_in}")
 
@@ -102,7 +103,7 @@ class Players:
         try:
             self._defense = int(self.attack_table.loc[player.lower(), "defense"])
         except:
-            logging.ERROR(f"{player} offensive rights not found in attack table. Corruption?")
+            logging.ERROR(f"{player} defensive rights not found in attack table. Corruption?")
 
         return self._defense
     
