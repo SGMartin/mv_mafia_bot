@@ -60,7 +60,8 @@ def run(update_tick: int):
 
     ## check if this is the first bot activation. Don't trust cycles
     if bot_cyles == 0:
-        announce_bot_activation()
+        print("Here")
+        #announce_bot_activation()
 
     while(True):
 
@@ -195,7 +196,9 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
 
                     User.push_lynch(last_votecount=vcount._vote_table,
                                     victim=game_action.victim,
-                                    post_id=game_action.id)
+                                    post_id=game_action.id,
+                                    reveal=f"{Players.get_player_role(game_action.victim)} - {Players.get_player_team(game_action.victim)}"
+                    )
 
             elif game_action.type == actions.Action.unvote:
                 vcount.unvote_player(action=game_action)
@@ -306,8 +309,14 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
                             player=attacker_real_name
                             )
 
-                        if game_action.id > last_shot_fired: 
-                            User.queue_shooting(attacker=attacker_real_name,victim=victim_real_name,is_dead=is_dead_victim)
+                        if game_action.id > last_shot_fired:
+                            ## TODO: refactor when players are actual objects 
+                            User.queue_shooting(
+                                attacker=attacker_real_name,
+                                victim=victim_real_name,
+                                is_dead=is_dead_victim,
+                                reveal=f"{Players.get_player_role(game_action.victim)} - {Players.get_player_team(game_action.victim)}"
+                                )
                 else:
                     logging.info(f"Invalid victim:{game_action.victim} at {game_action.id}")
             

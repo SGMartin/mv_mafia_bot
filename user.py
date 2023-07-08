@@ -84,39 +84,45 @@ class User:
         self._message_to_post = self.generate_initial_msg(this_cfg=self.config)
         self.post(self._message_to_post)
 
-    def queue_shooting(self, attacker:str, victim:str, is_dead:bool):
+    def queue_shooting(self, attacker:str, victim:str, is_dead:bool, reveal:str="unknown"):
         """Push a new shootoing event immediately, skipping the queue
 
         Args:
             attacker (str): The attacking player.
             victim (str): The player who has been shot.
             is_dead (bool): Is the victim dead?
+            reveal (str): Role reveal
         """
         self._header = f'# ¡{attacker} tiene un arma! \n'
         self._body = f"_¡{attacker} revela un arma y dispara a {victim} ante la atónita mirada de la multitud!_ \n\n"
-        
+
         if is_dead:
-            self._footer = f"**¡{victim} ha sido asesinado!**\n [Spoiler={victim} era...]**Pueblo vanilla**[/spoiler]\n\n @{self.config.game_master}, se ha producido un asesinato."
+            if self.config.reveal_day_kill:
+                self._footer = f"**¡{victim} ha sido asesinado!**\n [Spoiler={victim} era...]**{reveal}**[/spoiler]\n\n @{self.config.game_master}, se ha producido un asesinato."
+            else:
+                self._footer = f"**¡{victim} ha sido asesinado!**\n [Spoiler={victim} era...]Será revelado por el GM[/spoiler]\n\n @{self.config.game_master}, se ha producido un asesinato."
         else:
             self._footer = f"**¡{victim} sigue en pie!**"
 
         self._message_to_post = self._header + self._body + self._footer
         self._queue.append(self._message_to_post)
         
-    def push_lynch(self, last_votecount: pd.DataFrame, victim:str, post_id:int):
+    def push_lynch(self, last_votecount: pd.DataFrame, victim:str, post_id:int, reveal=str):
         """Generate a player lynched message and immediately post it the game thread. Skips the queue.
 
         Args:
             last_votecount (pd.DataFrame): The vote count table after the last vote.
             victim (str): The lynched player name.
             post_id (int): The post number where the vote triggering the lynch was casted.
+            reveal(str): The role to reveal, if necessary
         """
 
         self._message_to_post = self.generate_lynch_message(last_votecount=last_votecount,
                                                             victim=victim,
-                                                            post_id=post_id)
+                                                            post_id=post_id,
+                                                            role=reveal
+                                                            )
         self.post(self._message_to_post)
-
 
     def login(self, user:str, password:str):
         """Open and resolve mediavida.com login form to log into the bot account.
@@ -158,7 +164,6 @@ class User:
         
         return self.browser.url
 
-
     def generate_vote_message(self, vote_count: pd.DataFrame, alive_players: pd.DataFrame, vote_majority:int, post_id:int) -> str:
         """Generate a formatted Markdown message representing the vote count results.
 
@@ -187,7 +192,7 @@ class User:
         return self._message
 
 
-    def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str, post_id:int) ->str:
+    def generate_lynch_message(self, last_votecount: pd.DataFrame, victim:str, post_id:int, role:str="Unknown") ->str:
         """Generate a formatted Markdown message announcing a player lynch.
 
         Args:
@@ -210,7 +215,11 @@ class User:
         self._final_votecount = self.generate_string_from_vote_count(vote_table=last_votecount)
 
         self._no_votes = f'**Ya no se admiten más votos.** \n \n'
-        self._footer   = f'@{self.config.game_master}, el pueblo ha hablado. \n'
+
+        if self.config.reveal_lynch:
+            self._footer = f"[Spoiler={victim} era...]**{role}**[/spoiler]\n\n @{self.config.game_master}, el pueblo ha hablado. \n"
+        else:
+            self._footer=f'@{self.config.game_master}, el pueblo ha hablado y aguarda tu resolución. \n'
 
         self._message = self._header + self._final_votecount + '\n' + self._announcement + self._no_votes + self._footer
 
@@ -319,7 +328,7 @@ class User:
         self._header = "# ¡Bot activado con éxito!\n"
         self._subheader = "## Parámetros de la partida\n\n"
 
-        self._gm_item= f"* **GM**: {this_cfg.game_master}\n*"
+        self._gm_item= f"* **GM**: {this_cfg.game_master}\n"
         self._mods_item = f"* **Moderadores**: {','.join(this_cfg.moderators)}\n"
         self._frequencies = f"* **Frecuencias de recuento**: {this_cfg.posts_until_update} mensajes, {this_cfg.votes_until_update} voto(s).\n"
         self._autoflip = f"* **Resolución de linchamiento automática**: No.\n"

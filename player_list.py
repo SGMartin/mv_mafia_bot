@@ -9,7 +9,7 @@ class Players:
             self.attack_table = pd.read_csv("attack_and_defense.csv", sep=",")
         except:
             logging.info('Failed to load attack table. Setting all attacks and defense to 0')
-            self.attack_table = pd.DataFrame(self.players, columns = ["players"])
+            self.attack_table = pd.DataFrame(self.players, columns = ["player"])
             self.attack_table["attack"] = 0
             self.attack_table["defense"] = 0
             self.attack_table["last_shot"] = 0
@@ -25,6 +25,16 @@ class Players:
             self.shots_history = pd.DataFrame(columns=["shooter", "victim", "survived", "post_id", "bot_cycle"])
             self.players = list(set(players))
             self.fallen = []
+        
+        try:
+            self.role_list = pd.read_csv("role_list.csv", sep=",")
+        except:
+            logging.info("Failed to load role list. Setting all roles to unknown")
+            self.role_list = pd.DataFrame(self.players, columns = ["player"])
+            self.role_list["team"] = "unknown"
+            self.role_list["role"] = "unknown"
+        
+        self.role_list.index = self.role_list["player"].str.lower()
 
         self.bot_cycle = bot_cycle
 
@@ -94,7 +104,7 @@ class Players:
         try:
             self._offense = int(self.attack_table.loc[player.lower(), "attack"])
         except:
-            logging.ERROR(f"{player} offensive rights not found in attack table. Corruption?")
+            logging.warn(f"{player} offensive rights not found in attack table. Corruption?")
 
         return self._offense
     
@@ -103,9 +113,27 @@ class Players:
         try:
             self._defense = int(self.attack_table.loc[player.lower(), "defense"])
         except:
-            logging.ERROR(f"{player} defensive rights not found in attack table. Corruption?")
+            logging.warn(f"{player} defensive rights not found in attack table. Corruption?")
 
         return self._defense
+    
+    def get_player_team(self, player:str):
+        self._team = "unknown"
+        try:
+            self._team = self.role_list.loc[player.lower(), "team"]
+        except:
+            logging.warn(f"{player} team not found. Corruption?")
+        
+        return self._team
+    
+    def get_player_role(self, player:str):
+        self._role = "unknown"
+        try:
+            self._role = self.role_list.loc[player.lower(), "role"]
+        except:
+            logging.warn(f"{player} role not found. Corruption?")
+        
+        return self._role
     
     def reduce_player_offense(self, player:str, offset:int = 1):
         self._last_offense = self.get_player_offense(player)
