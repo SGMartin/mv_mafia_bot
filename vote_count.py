@@ -403,7 +403,27 @@ class  VoteCount:
         else:
             logging.warning(f"Attempting to update vote limit for unknown id: {player}.")
 
-            
+    def get_current_lynch_candidate(self) -> str:
+        """Returns the player with the most votes at the given time. If there are no votes, it will default
+        to no_lynch or None if no_lynch is not allowed.
+
+        Returns:
+            str: Player to lynch
+        """
+        
+        self._most_voted = self._vote_table["public_name"].value_counts().sort_values(ascending=False)
+
+        if len(self._most_voted) == 0:
+            # Is no lynch allowed?
+            self._is_no_lynch_allowed = bool(self.vote_rights.loc["no_lynch", "can_be_voted"])
+
+            if self._is_no_lynch_allowed:
+                return "no_lynch"
+            else:
+                return None
+        else:
+            return self._most_voted.index[0]
+
 
     #TODO: Awful function, fix it
     def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, victim_alias:str, voted_as:str):
