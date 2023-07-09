@@ -107,7 +107,7 @@ class User:
         self._message_to_post = self._header + self._body + self._footer
         self._queue.append(self._message_to_post)
         
-    def push_lynch(self, last_votecount: pd.DataFrame, victim:str, post_id:int, reveal=str):
+    def push_lynch(self, last_votecount: pd.DataFrame, victim:str, post_id:int, reveal=str, is_eod=False):
         """Generate a player lynched message and immediately post it the game thread. Skips the queue.
 
         Args:
@@ -117,12 +117,21 @@ class User:
             reveal(str): The role to reveal, if necessary
         """
 
-        self._message_to_post = self.generate_lynch_message(last_votecount=last_votecount,
-                                                            victim=victim,
-                                                            post_id=post_id,
-                                                            role=reveal
-                                                            )
+        if is_eod:
+            self._message_to_post = self.generate_eod_message(
+                last_votecount=last_votecount,
+                victim=victim,
+                post_id=post_id,
+                role=reveal
+                )
+        else:
+            self._message_to_post = self.generate_lynch_message(last_votecount=last_votecount,
+                                                                victim=victim,
+                                                                post_id=post_id,
+                                                                role=reveal
+                                                                )
         self.post(self._message_to_post)
+
 
     def login(self, user:str, password:str):
         """Open and resolve mediavida.com login form to log into the bot account.
@@ -156,6 +165,7 @@ class User:
         Returns:
             [Robobrowser]: The resolved form.
         """
+        """
         self.browser.open(f'http://www.mediavida.com/foro/post.php?tid={self.config.thread_id}')
         self._post  = self.browser.get_form(id='postear')
         self._post['cuerpo'].value = message
@@ -163,6 +173,8 @@ class User:
         self.browser.submit_form(self._post)
         
         return self.browser.url
+        """
+        print(message)
 
     def generate_vote_message(self, vote_count: pd.DataFrame, alive_players: pd.DataFrame, vote_majority:int, post_id:int) -> str:
         """Generate a formatted Markdown message representing the vote count results.
@@ -216,10 +228,43 @@ class User:
 
         self._no_votes = f'**Ya no se admiten más votos.** \n \n'
 
-        if self.config.reveal_lynch:
+        if self.config.reveal_lynch and victim != "no_lynch":
             self._footer = f"[Spoiler={victim} era...]**{role}**[/spoiler]\n\n @{self.config.game_master}, el pueblo ha hablado. \n"
         else:
             self._footer=f'@{self.config.game_master}, el pueblo ha hablado y aguarda tu resolución. \n'
+
+        self._message = self._header + self._final_votecount + '\n' + self._announcement + self._no_votes + self._footer
+
+        return self._message
+
+    def generate_eod_message(self, last_votecount: pd.DataFrame, victim:str, post_id:int, role:str="unknown") -> str:
+        """Generate a formatted Markdown message announcing a player lynch after EoD.
+
+        Args:
+            last_votecount (pd.DataFrame): The vote count when the player is lynched.
+            victim (str): The lynched player.
+            post_id (int): The post id of the last vote before the lynch.
+
+        Returns:
+            str: A formatted Markdown message.
+        """
+        self._header = '# Recuento de votos final \n'
+
+        if victim  == 'no_lynch':
+            self._announcement = f'### ¡Se ha alcanzado el final del día! Última acción válida en {post_id}. Nadie será linchado! ### \n'
+        elif victim is None:
+            self._announcement = f'### ¡Se ha alcanzado el final del día! Última acción válida en {post_id}. El GM decidirá el linchamiento ### \n'
+        else:
+            self._announcement = f'### ¡Se ha alcanzado el final del día! Última acción válida en {post_id}, se linchará a {victim}! ### \n'
+
+        self._final_votecount = self.generate_string_from_vote_count(vote_table=last_votecount)
+
+        self._no_votes = f'**Ya no se admiten más votos.** \n \n'
+
+        if self.config.reveal_eod_lynch and victim is not None and victim != "no_lynch":
+            self._footer = f"[Spoiler={victim} era...]**{role}**[/spoiler]\n\n @{self.config.game_master}, el pueblo ha hablado. \n"
+        else:
+            self._footer=f'@{self.config.game_master}, el día ha terminado y el pueblo aguarda tu resolución. \n'
 
         self._message = self._header + self._final_votecount + '\n' + self._announcement + self._no_votes + self._footer
 
@@ -331,7 +376,7 @@ class User:
         self._gm_item= f"* **GM**: {this_cfg.game_master}\n"
         self._mods_item = f"* **Moderadores**: {','.join(this_cfg.moderators)}\n"
         self._frequencies = f"* **Frecuencias de recuento**: {this_cfg.posts_until_update} mensajes, {this_cfg.votes_until_update} voto(s).\n"
-        self._autoflip = f"* **Resolución de linchamiento automática**: No.\n"
+        self._autoflip = f"* **Resolución de linchamiento automática**: No.\n\n"
 
         self._cite_gm = f"@{this_cfg.game_master} ya estoy en funcionamiento."
 

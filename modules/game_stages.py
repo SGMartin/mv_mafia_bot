@@ -64,7 +64,7 @@ class GameStage():
         """
         self._start_time = self.get_start_time(time_format="mediavida")        
         self._end_time = self._start_time + datetime.timedelta(hours=self._stage_duration)
-        self._end_time = self._end_time.replace(hour=22, minute=0, second=0, microsecond=0).timestamp()
+        self._end_time = self._end_time.replace(hour=21, minute=10, second=0, microsecond=0).timestamp()
         return self._end_time
     
 

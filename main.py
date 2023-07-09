@@ -95,10 +95,9 @@ def run(update_tick: int):
                                                    bot_id=settings.mediavida_user)
 
             last_votecount_id = last_votecount[0]
-            last_vote_count_was_lynch  = last_votecount[1]
+            majority_reached  = last_votecount[1]
 
-            if last_votecount_id < current_day_start_post and last_vote_count_was_lynch:
-                global majority_reached
+            if last_votecount_id < current_day_start_post and majority_reached:
                 majority_reached = False            
 
             if not majority_reached:
@@ -127,11 +126,35 @@ def run(update_tick: int):
                     vcount=VoteCount,
                     Players=Players,
                     last_count=last_votecount_id,
-                    day_start = current_day_start_post
+                    day_start = current_day_start_post,
+                    eod_time=game_status.get_end_of_stage()
                     )
 
-                ## here for random hookup
-                print(VoteCount.get_current_lynch_candidate())
+                ## Check If there is still time left to play. Otherwise, start the EoD
+                if game_status.is_end_of_stage(current_time = get_current_ntp_time()) and not last_vote_count_was_lynch:
+                    
+                    last_valid_action = [action for action in action_queue if action.post_time < game_status.get_end_of_stage()].pop()
+                    majority_reached = True ## This will stop the bot in the next iteration
+                    logging.info("EoD detected. Pushing last valid votecount and preparing flip routine")
+
+                    end_of_day_victim = VoteCount.get_current_lynch_candidate()
+                    lynch_is_revealed = settings.reveal_eod_lynch
+
+                    if end_of_day_victim is None or end_of_day_victim == "no_lynch":
+                        role_to_reveal = None
+                    else:
+                        role_to_reveal = f"{Players.get_player_role(end_of_day_victim)} - {Players.get_player_team(end_of_day_victim)}"
+
+                    User = user.User(config=settings)
+                    User.push_lynch(
+                        last_votecount=VoteCount._vote_table,
+                        victim=end_of_day_victim,
+                        post_id=last_valid_action.id,
+                        reveal=role_to_reveal,
+                        is_eod=True
+                        )
+
+                    majority_reached = True
 
                 ## get votes casted since last update
                 votes_since_update = len(VoteCount._vote_table[VoteCount._vote_table['post_id'] > last_votecount_id].index)
@@ -180,7 +203,7 @@ def run(update_tick: int):
 
 #TODO: Handle actual permissions without a giant if/else
 #TODO: This func. is prime candidate for refactoring
-def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.Players, last_count:int, day_start:int):
+def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.Players, last_count:int, day_start:int, eod_time:int):
     '''
     Parameters:  \n
     queue: A list of game actions.\n
@@ -191,6 +214,11 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
     allowed_actors = Players.players + staff
 
     for game_action in queue:
+
+        ## Ignore actions out of EoD except those coming from the staff
+        if game_action.post_time >= eod_time and game_action.author not in staff:
+            continue
+
         if game_action.author in allowed_actors:
 
             if game_action.type == actions.Action.vote and (Players.player_exists(game_action.victim) or game_action.victim == "no_lynch"):
@@ -207,6 +235,7 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
                                     post_id=game_action.id,
                                     reveal=f"{Players.get_player_role(game_action.victim)} - {Players.get_player_team(game_action.victim)}"
                     )
+                    break
 
             elif game_action.type == actions.Action.unvote:
                 vcount.unvote_player(action=game_action)
