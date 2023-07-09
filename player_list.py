@@ -60,6 +60,9 @@ class Players:
             ## copy this player and keep it's attack and defense rights
             if player_in not in self.attack_table.index.tolist():
                 self._append_to_attack_table(player=player_in, based_on_player=player_out)
+            
+            if player_in not in self.role_list.index.tolist():
+                self._append_to_role_list(player=player_in, based_on_player=player_out)
         else:
             logging.info("Ignoring replacement {player_out} by {player_in}")
 
@@ -253,3 +256,29 @@ class Players:
         #TODO: Find  a better way to do this. 
         logging.info(f'Updated attack table with {player}')
         self.attack_table.to_csv('attack_and_defense.csv', sep=',', index=False, header=True)
+
+    def _append_to_role_list(self, player:str, based_on_player:str):
+        """Add a player to the role_list table by copying the role and team of
+        another player.
+
+        Args:
+            player (str): The name of the player entry to add to the table.
+            based_on_player (str): The name of a player whose vote rights will be used
+            for the new player.
+        """
+        ## Get the rights reg. to base the new entry on
+        self._old_player = self.role_list.loc[based_on_player].to_dict()
+
+        # Change the player name
+        self._old_player['player'] = player
+
+        # Create a 1 row dataframe whose index is the lowercased player name
+        self._new_role = pd.DataFrame(self._old_player, index=[player.lower()])
+
+        # Append it to the end of the vote rights table
+        self.role_list = self.role_list.append(self._new_role)
+
+        # Just in case the bot closes, let's update the file
+        #TODO: Find  a better way to do this. 
+        logging.info(f'Updated role list with {player}')
+        self.role_list.to_csv('role_list.csv', sep=',', index=False, header=True)
