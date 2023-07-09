@@ -1,6 +1,4 @@
-import enum
-
-class Stage(enum.Enum):
+class Stage:
     Day   = 0
     Night = 1
     End   = 2
