@@ -1,10 +1,11 @@
-from datetime import date
+import datetime
 import logging
 import os.path
 import time
 import sys
 
 import pandas as pd
+import ntplib
 
 import config
 import user
@@ -60,24 +61,26 @@ def run(update_tick: int):
 
     ## check if this is the first bot activation. Don't trust cycles
     if bot_cyles == 0:
-        print("Here")
-        #announce_bot_activation()
+        announce_bot_activation()
 
     while(True):
 
 
         update_tick     = settings.update_time
 
-        game_status     = tr.get_game_phase(game_thread=settings.game_thread,
-                                            game_master=settings.game_master)
-       
-        if game_status[0] == stages.Stage.Day:
+        game_status     = tr.get_game_phase(game_thread=settings.game_thread, game_master=settings.game_master)
 
-            current_day_start_post = game_status[1]
+        if game_status.game_stage == stages.Stage.Day:
+
+            current_day_start_post = game_status.stage_start_post
+
+            ## Set the duration of the day phase
+            game_status.set_stage_duration(stage_hours = settings.day_duration)
+
             player_list    = tr.get_player_list(game_thread=settings.game_thread,
                                         start_day_post_id=current_day_start_post
                                         )
-            
+
             Players = pl.Players(player_list, bot_cyles)
 
             VoteCount              = vote_count.VoteCount(staff=staff,
@@ -92,15 +95,16 @@ def run(update_tick: int):
                                                    bot_id=settings.mediavida_user)
 
             last_votecount_id = last_votecount[0]
-            majority_reached  = last_votecount[1]
+            last_vote_count_was_lynch  = last_votecount[1]
 
-            if last_votecount_id < current_day_start_post and majority_reached:
+            if last_votecount_id < current_day_start_post and last_vote_count_was_lynch:
+                global majority_reached
                 majority_reached = False            
 
             if not majority_reached:
 
                 last_thread_post  = tr.get_last_post(game_thread=settings.game_thread)
-                
+
                 logging.info(f'Starting vote count. Last vote count: {last_votecount_id}. Last reply: {last_thread_post}')
 
                 start_page = tr.get_page_number_from_post(current_day_start_post)
@@ -126,12 +130,16 @@ def run(update_tick: int):
                     day_start = current_day_start_post
                     )
 
+                ## here for random hookup
+                print(VoteCount.get_current_lynch_candidate())
+
                 ## get votes casted since last update
                 votes_since_update = len(VoteCount._vote_table[VoteCount._vote_table['post_id'] > last_votecount_id].index)
 
                 should_update =  update_thread_vote_count(last_count=last_votecount_id,
                                                           last_post=last_thread_post,
-                                                          votes_since_update=votes_since_update)     
+                                                          votes_since_update=votes_since_update
+                                                          )     
                 
                 if should_update:
                     logging.info('Pushing a new votecount')
@@ -149,13 +157,13 @@ def run(update_tick: int):
             # Save the vote history for the next iteration
             VoteCount.save_vote_history()
 
-        elif game_status[0]  == stages.Stage.Night:
-
+        elif game_status.game_stage  == stages.Stage.Night:
+            game_status.set_stage_duration(stage_hours = settings.night_duration)
             logging.info('Night phase detected. Skipping...')
             print('We are on night phase!')
 
         #TODO: Exit routine here
-        elif game_status[0] == stages.Stage.End:
+        elif game_status.game_stage == stages.Stage.End:
             
             print('Game ended!')
             logging.info(f'Game ended. Exiting now')
@@ -388,7 +396,6 @@ def announce_bot_activation():
     del User
 
 def get_last_bot_cycle() -> int:
-
     try:
         previous_vote_history = pd.read_csv('vote_history.csv', sep=',')
         last_cycle  = previous_vote_history['bot_cycle'].tail(1).values[0]
@@ -396,6 +403,16 @@ def get_last_bot_cycle() -> int:
         return cur_cycle
     except:
         return 0
+
+def get_current_ntp_time() -> int:
+    try:
+        ntp_client = ntplib.NTPClient()
+        response = ntp_client.request("pool.ntp.org")
+        current_time = response.tx_time
+    except:
+        current_time = datetime.datetime.now().timestamp()
+    
+    return current_time
 
 if __name__ == "__main__":
 	main()

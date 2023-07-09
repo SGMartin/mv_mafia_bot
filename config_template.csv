@@ -10,3 +10,6 @@ votes_until_update,10
 reveal_day_kill,0
 reveal_eod_lynch,0
 reveal_lynch,0
+day_hours,48
+night_hours,24
+end_day_hour,22

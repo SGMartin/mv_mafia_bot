@@ -51,7 +51,7 @@ class Players:
         else:
             logging.info("Cannot remove {player}. {player} not present.")   
 
-
+    ## TODO: Do this too with the role table
     def replace_player(self, player_out: str, player_in :str):
         if self.player_exists(player_out) and not self.player_exists(player_in):
             self.remove_player(player_out)

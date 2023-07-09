@@ -22,6 +22,7 @@ class Config:
         self.posts_until_update = 30
         self.votes_until_update = 10
         self.reveal_day_kill, self.reveal_eod_lynch, self.reveal_lynch = False,False,False
+        self.day_duration, self.night_duration = 48, 24
 
         self._config_file = file_to_load
         self._raw_config  = self._load_file(self._config_file)
@@ -80,13 +81,14 @@ class Config:
             self.reveal_day_kill = bool(int(raw_config.loc["reveal_day_kill", "value"]))
             self.reveal_eod_lynch = bool(int(raw_config.loc["reveal_eod_lynch", "value"]))
             self.reveal_lynch = bool(int(raw_config.loc["reveal_lynch", "value"]))
+            self.day_duration = abs(int(raw_config.loc["day_hours", "value"]))
+            self.night_duration = abs(int(raw_config.loc["night_hours", "value"]))
 
             if self.update_time < 10:
                 self.update_time = 10
             
             if self.posts_until_update <= 0:
                 self.posts_until_update = -1
-
             
             ## Attempt to populate moderator lists
             if pd.notna(raw_config.loc["Moderators", "value"]):
