@@ -13,6 +13,7 @@ class GameStage():
         self.stage_start_post = post_id
 
         self._stage_duration = 48
+        self._stage_start_time = datetime.time(22,0,0)
     
     
     def set_stage_duration(self, stage_hours:int):
@@ -26,6 +27,15 @@ class GameStage():
             self._stage_duration = stage_hours
         else:
             raise ValueError(f"Invalid stage duration. Negative numbers are not allowed")
+    
+
+    def set_stage_start_hour(self, stage_start:datetime.time):
+        """Set a new hour:minute:seconds time for the stage start
+
+        Args:
+            stage_start (timestamp): a datetime object with the new hour for the stage start
+        """
+        self._stage_start_time =  stage_start
 
     def get_start_time(self, time_format:str="utc"):
         """Get when this stage started in different time formats
@@ -64,7 +74,13 @@ class GameStage():
         """
         self._start_time = self.get_start_time(time_format="mediavida")        
         self._end_time = self._start_time + datetime.timedelta(hours=self._stage_duration)
-        self._end_time = self._end_time.replace(hour=21, minute=10, second=0, microsecond=0).timestamp()
+
+        self._end_time = self._end_time.replace(
+            hour=self._stage_start_time.hour,
+            minute=self._stage_start_time.minute,
+            second=self._stage_start_time.second,
+            microsecond=self._stage_start_time.microsecond
+            ).timestamp()
         return self._end_time
     
 

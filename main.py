@@ -76,7 +76,9 @@ def run(update_tick: int):
 
             ## Set the duration of the day phase
             game_status.set_stage_duration(stage_hours = settings.day_duration)
-
+            ## Set the stage start time
+            game_status.set_stage_start_hour(stage_start=settings.stage_start_time)
+            
             player_list    = tr.get_player_list(game_thread=settings.game_thread,
                                         start_day_post_id=current_day_start_post
                                         )

@@ -82,6 +82,7 @@ class Config:
             self.reveal_lynch = bool(int(raw_config.loc["reveal_lynch", "value"]))
             self.day_duration = abs(float(raw_config.loc["day_hours", "value"]))
             self.night_duration = abs(float(raw_config.loc["night_hours", "value"]))
+            self.stage_start_time = pd.to_datetime(raw_config.loc["stage_start_time", "value"], format="%H:%M:%S").time()
 
             if self.update_time < 10:
                 self.update_time = 10
