@@ -165,7 +165,6 @@ class User:
         Returns:
             [Robobrowser]: The resolved form.
         """
-        """
         self.browser.open(f'http://www.mediavida.com/foro/post.php?tid={self.config.thread_id}')
         self._post  = self.browser.get_form(id='postear')
         self._post['cuerpo'].value = message
@@ -173,8 +172,7 @@ class User:
         self.browser.submit_form(self._post)
         
         return self.browser.url
-        """
-        print(message)
+        
 
     def generate_vote_message(self, vote_count: pd.DataFrame, alive_players: pd.DataFrame, vote_majority:int, post_id:int) -> str:
         """Generate a formatted Markdown message representing the vote count results.
