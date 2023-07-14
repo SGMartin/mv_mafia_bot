@@ -57,10 +57,10 @@ def run(update_tick: int):
 
     ## Attempt to recover the last bot cycle just in case of an unexpected
     ## crash. Needed for the vhistory to work correctly.
-    bot_cyles = get_last_bot_cycle()
+    bot_cycles = get_last_bot_cycle()
 
     ## check if this is the first bot activation. Don't trust cycles
-    if bot_cyles == 0:
+    if bot_cycles == 0:
         announce_bot_activation()
 
     while(True):
@@ -83,11 +83,11 @@ def run(update_tick: int):
                                         start_day_post_id=current_day_start_post
                                         )
 
-            Players = pl.Players(player_list, bot_cyles)
+            Players = pl.Players(player_list, bot_cycles)
 
             VoteCount              = vote_count.VoteCount(staff=staff,
                                                           day_start_post=current_day_start_post,
-                                                          bot_cyle=bot_cyles,
+                                                          bot_cycle=bot_cycles,
                                                           n_players=len(Players.players)
                                                           )
 
@@ -133,7 +133,7 @@ def run(update_tick: int):
                     )
 
                 ## Check If there is still time left to play. Otherwise, start the EoD
-                if game_status.is_end_of_stage(current_time = get_current_ntp_time()) and not last_vote_count_was_lynch:
+                if game_status.is_end_of_stage(current_time = get_current_ntp_time()) and not majority_reached:
                     
                     last_valid_action = [action for action in action_queue if action.post_time < game_status.get_end_of_stage()].pop()
                     majority_reached = True ## This will stop the bot in the next iteration
@@ -199,7 +199,7 @@ def run(update_tick: int):
 
         print(f'Sleeping for {update_tick} seconds.')
 
-        bot_cyles += 1
+        bot_cycles += 1
         time.sleep(update_tick)
 
 
