@@ -142,7 +142,7 @@ def run(update_tick: int):
                     end_of_day_victim = VoteCount.get_current_lynch_candidate()
                     lynch_is_revealed = settings.reveal_eod_lynch
 
-                    if end_of_day_victim is None or end_of_day_victim == "no_lynch":
+                    if end_of_day_victim is None or end_of_day_victim == "no_lynch" or not lynch_is_revealed:
                         role_to_reveal = None
                     else:
                         role_to_reveal = f"{Players.get_player_role(end_of_day_victim)} - {Players.get_player_team(end_of_day_victim)}"

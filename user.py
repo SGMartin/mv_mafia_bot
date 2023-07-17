@@ -173,7 +173,6 @@ class User:
         
         return self.browser.url
         
-
     def generate_vote_message(self, vote_count: pd.DataFrame, alive_players: pd.DataFrame, vote_majority:int, post_id:int) -> str:
         """Generate a formatted Markdown message representing the vote count results.
 
