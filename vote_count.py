@@ -422,8 +422,12 @@ class  VoteCount:
                 return "no_lynch"
             else:
                 return None
-        else:
+        elif len(self._most_voted) == 1:
             return self._most_voted.index[0]
+        ## TIE... do not resolve if tie with no lynch. Let the GM decide for now
+        else:
+            return None
+            
 
 
     #TODO: Awful function, fix it
