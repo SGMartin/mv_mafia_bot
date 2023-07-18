@@ -7,8 +7,8 @@ import urllib3
 from bs4 import BeautifulSoup
 
 from modules.game_actions import GameAction
+from modules.game_stages import GameStage
 from states.stage import Stage
-
 
 def get_game_phase(game_thread:str, game_master:str) -> tuple:
     """Parse all the posts from game_master in game_thread to retrieve 
@@ -52,17 +52,21 @@ def get_game_phase(game_thread:str, game_master:str) -> tuple:
                 stage_end     = re.findall('^Final del día [0-9]*', pday.text)
                 stage_start   = re.findall('^Día [0-9]*', pday.text)
 
-                post_id       = int(post['data-num'])
+                post_id             = int(post['data-num'])
+                time_span           = post.find("span", attrs={"data-time":True})
+                stage_timestamp     = int(time_span["data-time"])
+                
+                this_stage = Stage.Night
 
-                ## TODO: This could be improved
                 if game_end:
-                    return (Stage.End, post_id)
+                    return GameStage(post_id=post_id, game_stage=Stage.End, stage_start_time=stage_timestamp)
                 elif stage_end:
-                    return (Stage.Night, post_id) 
+                    return GameStage(post_id=post_id, game_stage=Stage.Night, stage_start_time=stage_timestamp)
                 elif stage_start:
-                    return (Stage.Day, post_id)
+                    return GameStage(post_id=post_id, game_stage=Stage.Day, stage_start_time=stage_timestamp)
 
-    return (Stage.Night, post_id)
+    # Default returning when the game has not started. TODO: Improve this
+    return GameStage(post_id=1, game_stag=Stage.Night, stage_start_time=0)
 
 
 def get_player_list(game_thread:str, start_day_post_id:int) -> list:

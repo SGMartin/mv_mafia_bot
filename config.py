@@ -21,6 +21,8 @@ class Config:
         self.update_time        = 60
         self.posts_until_update = 30
         self.votes_until_update = 10
+        self.reveal_day_kill, self.reveal_eod_lynch, self.reveal_lynch = False,False,False
+        self.day_duration, self.night_duration = 48, 24
 
         self._config_file = file_to_load
         self._raw_config  = self._load_file(self._config_file)
@@ -72,17 +74,21 @@ class Config:
         
             self.mediavida_user = raw_config.loc["mediavida_user", "value"]
             self.mediavida_pwd  = raw_config.loc["mediavida_password", "value"]
-
             self.update_time    = int(raw_config.loc["update_time_seconds", "value"])
             self.posts_until_update = int(raw_config.loc["push_vote_count_interval", "value"])
             self.votes_until_update = int(raw_config.loc["votes_until_update", "value"])
+            self.reveal_day_kill = bool(int(raw_config.loc["reveal_day_kill", "value"]))
+            self.reveal_eod_lynch = bool(int(raw_config.loc["reveal_eod_lynch", "value"]))
+            self.reveal_lynch = bool(int(raw_config.loc["reveal_lynch", "value"]))
+            self.day_duration = abs(float(raw_config.loc["day_hours", "value"]))
+            self.night_duration = abs(float(raw_config.loc["night_hours", "value"]))
+            self.stage_start_time = pd.to_datetime(raw_config.loc["stage_start_time", "value"], format="%H:%M:%S").time()
 
             if self.update_time < 10:
                 self.update_time = 10
             
             if self.posts_until_update <= 0:
                 self.posts_until_update = -1
-
             
             ## Attempt to populate moderator lists
             if pd.notna(raw_config.loc["Moderators", "value"]):

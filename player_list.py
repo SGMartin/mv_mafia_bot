@@ -9,7 +9,7 @@ class Players:
             self.attack_table = pd.read_csv("attack_and_defense.csv", sep=",")
         except:
             logging.info('Failed to load attack table. Setting all attacks and defense to 0')
-            self.attack_table = pd.DataFrame(self.players, columns = ["players"])
+            self.attack_table = pd.DataFrame(self.players, columns = ["player"])
             self.attack_table["attack"] = 0
             self.attack_table["defense"] = 0
             self.attack_table["last_shot"] = 0
@@ -25,6 +25,16 @@ class Players:
             self.shots_history = pd.DataFrame(columns=["shooter", "victim", "survived", "post_id", "bot_cycle"])
             self.players = list(set(players))
             self.fallen = []
+        
+        try:
+            self.role_list = pd.read_csv("role_list.csv", sep=",")
+        except:
+            logging.info("Failed to load role list. Setting all roles to unknown")
+            self.role_list = pd.DataFrame(self.players, columns = ["player"])
+            self.role_list["team"] = "unknown"
+            self.role_list["role"] = "unknown"
+        
+        self.role_list.index = self.role_list["player"].str.lower()
 
         self.bot_cycle = bot_cycle
 
@@ -41,7 +51,7 @@ class Players:
         else:
             logging.info("Cannot remove {player}. {player} not present.")   
 
-
+    ## TODO: Do this too with the role table
     def replace_player(self, player_out: str, player_in :str):
         if self.player_exists(player_out) and not self.player_exists(player_in):
             self.remove_player(player_out)
@@ -50,6 +60,9 @@ class Players:
             ## copy this player and keep it's attack and defense rights
             if player_in not in self.attack_table.index.tolist():
                 self._append_to_attack_table(player=player_in, based_on_player=player_out)
+            
+            if player_in not in self.role_list.index.tolist():
+                self._append_to_role_list(player=player_in, based_on_player=player_out)
         else:
             logging.info("Ignoring replacement {player_out} by {player_in}")
 
@@ -94,7 +107,7 @@ class Players:
         try:
             self._offense = int(self.attack_table.loc[player.lower(), "attack"])
         except:
-            logging.ERROR(f"{player} offensive rights not found in attack table. Corruption?")
+            logging.warn(f"{player} offensive rights not found in attack table. Corruption?")
 
         return self._offense
     
@@ -103,9 +116,27 @@ class Players:
         try:
             self._defense = int(self.attack_table.loc[player.lower(), "defense"])
         except:
-            logging.ERROR(f"{player} defensive rights not found in attack table. Corruption?")
+            logging.warn(f"{player} defensive rights not found in attack table. Corruption?")
 
         return self._defense
+    
+    def get_player_team(self, player:str):
+        self._team = "unknown"
+        try:
+            self._team = self.role_list.loc[player.lower(), "team"]
+        except:
+            logging.warn(f"{player} team not found. Corruption?")
+        
+        return self._team
+    
+    def get_player_role(self, player:str):
+        self._role = "unknown"
+        try:
+            self._role = self.role_list.loc[player.lower(), "role"]
+        except:
+            logging.warn(f"{player} role not found. Corruption?")
+        
+        return self._role
     
     def reduce_player_offense(self, player:str, offset:int = 1):
         self._last_offense = self.get_player_offense(player)
@@ -225,3 +256,29 @@ class Players:
         #TODO: Find  a better way to do this. 
         logging.info(f'Updated attack table with {player}')
         self.attack_table.to_csv('attack_and_defense.csv', sep=',', index=False, header=True)
+
+    def _append_to_role_list(self, player:str, based_on_player:str):
+        """Add a player to the role_list table by copying the role and team of
+        another player.
+
+        Args:
+            player (str): The name of the player entry to add to the table.
+            based_on_player (str): The name of a player whose vote rights will be used
+            for the new player.
+        """
+        ## Get the rights reg. to base the new entry on
+        self._old_player = self.role_list.loc[based_on_player].to_dict()
+
+        # Change the player name
+        self._old_player['player'] = player
+
+        # Create a 1 row dataframe whose index is the lowercased player name
+        self._new_role = pd.DataFrame(self._old_player, index=[player.lower()])
+
+        # Append it to the end of the vote rights table
+        self.role_list = self.role_list.append(self._new_role)
+
+        # Just in case the bot closes, let's update the file
+        #TODO: Find  a better way to do this. 
+        logging.info(f'Updated role list with {player}')
+        self.role_list.to_csv('role_list.csv', sep=',', index=False, header=True)

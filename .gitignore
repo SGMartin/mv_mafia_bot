@@ -9,3 +9,4 @@ config.csv
 vote_config.csv
 attack_and_defense.csv
 shots_history.csv
+role_list.csv

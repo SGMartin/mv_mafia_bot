@@ -7,7 +7,7 @@ import modules.game_actions as gm
 
 class  VoteCount:
 
-    def __init__(self, staff:list, day_start_post:int, bot_cyle:int, n_players: int):
+    def __init__(self, staff:list, day_start_post:int, bot_cycle:int, n_players: int):
 
         # Initialize empty vote table
         self._vote_table = pd.DataFrame(columns=["player",
@@ -43,7 +43,7 @@ class  VoteCount:
         self.staff = staff
 
         self.lynched_player = ''
-        self.bot_cycle      = bot_cyle
+        self.bot_cycle      = bot_cycle
 
         # Frozen vote players
         self.frozen_players = list() 
@@ -51,6 +51,7 @@ class  VoteCount:
         self.locked_unvotes = False
 
         self.current_majority = self.get_vote_majority(n_players = n_players)
+        self.day_start_post = day_start_post
         
 
     def player_exists(self, player:str) -> bool:
@@ -403,7 +404,31 @@ class  VoteCount:
         else:
             logging.warning(f"Attempting to update vote limit for unknown id: {player}.")
 
+    def get_current_lynch_candidate(self) -> str:
+        """Returns the player with the most votes at the given time. If there are no votes, it will default
+        to no_lynch or None if no_lynch is not allowed.
+
+        Returns:
+            str: Player to lynch
+        """
+        
+        self._most_voted = self._vote_table["public_name"].value_counts().sort_values(ascending=False)
+
+        if len(self._most_voted) == 0:
+            # Is no lynch allowed?
+            self._is_no_lynch_allowed = bool(self.vote_rights.loc["no_lynch", "can_be_voted"])
+
+            if self._is_no_lynch_allowed:
+                return "no_lynch"
+            else:
+                return None
+        elif len(self._most_voted) == 1:
+            return self._most_voted.index[0]
+        ## TIE... do not resolve if tie with no lynch. Let the GM decide for now
+        else:
+            return None
             
+
 
     #TODO: Awful function, fix it
     def _append_vote(self, player:str, victim:str, post_id:int, post_time:int, victim_alias:str, voted_as:str):
@@ -450,15 +475,26 @@ class  VoteCount:
         logging.info(f'{player} unvoted {victim}.')
     
     def _set_unvote_to_history(self, player:str, victim:str, unvote_post_id):
-        if victim == "none":
-            self._unvote = self._vote_history.loc[(self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0) & (self._vote_history["post_id"] < unvote_post_id)]
-        else:
-            self._unvote = self._vote_history.loc[(self._vote_history["player"] == victim) & (self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0) & (self._vote_history["post_id"] < unvote_post_id)]
-            
+
+        self._unvote = self._vote_history.loc[
+            (self._vote_history["voted_by"] == player) & 
+            (self._vote_history["unvoted_at"] == 0) & 
+            (self._vote_history["post_id"] <= unvote_post_id) &
+            (self._vote_history["post_id"] >= self.day_start_post)
+            ]
+        
+        if victim != "none":
+            self._unvote = self._unvote.loc["player" == victim]
+        
+        self._sorted_unvotes = self._unvote.sort_values("bot_cycle")
+
         ## If self._unvote is empty, then we have nothing to update
-        if len(self._unvote) > 0:
-            self._vote_history.loc[self._unvote.index[0], "unvoted_at"] = unvote_post_id
-            logging.info(f"Add unvote to history at {self._unvote} for {unvote_post_id}")
+        ## If more than one result, it's a multi vote in the same post
+        if len(self._sorted_unvotes) == 0:
+            return
+        else:
+            self._vote_history.loc[self._sorted_unvotes.index[0], "unvoted_at"] = unvote_post_id
+            logging.info(f"Add unvote to history at {unvote_post_id} for {player} unvoting {victim}")
 
     def _update_vote_history(self):
         """Attempt to update the vote history with the last vote from the vote table.
