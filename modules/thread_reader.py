@@ -1,13 +1,14 @@
 import math
 import requests
 import re
+import unicodedata
 import urllib3
 
 from bs4 import BeautifulSoup
 
 from modules.game_actions import GameAction
+from modules.game_stages import GameStage
 from states.stage import Stage
-
 
 def get_game_phase(game_thread:str, game_master:str) -> tuple:
     """Parse all the posts from game_master in game_thread to retrieve 
@@ -51,17 +52,21 @@ def get_game_phase(game_thread:str, game_master:str) -> tuple:
                 stage_end     = re.findall('^Final del día [0-9]*', pday.text)
                 stage_start   = re.findall('^Día [0-9]*', pday.text)
 
-                post_id       = int(post['data-num'])
+                post_id             = int(post['data-num'])
+                time_span           = post.find("span", attrs={"data-time":True})
+                stage_timestamp     = int(time_span["data-time"])
+                
+                this_stage = Stage.Night
 
-                ## TODO: This could be improved
                 if game_end:
-                    return (Stage.End, post_id)
+                    return GameStage(post_id=post_id, game_stage=Stage.End, stage_start_time=stage_timestamp)
                 elif stage_end:
-                    return (Stage.Night, post_id) 
+                    return GameStage(post_id=post_id, game_stage=Stage.Night, stage_start_time=stage_timestamp)
                 elif stage_start:
-                    return (Stage.Day, post_id)
+                    return GameStage(post_id=post_id, game_stage=Stage.Day, stage_start_time=stage_timestamp)
 
-    return (Stage.Night, post_id)
+    # Default returning when the game has not started. TODO: Improve this
+    return GameStage(post_id=1, game_stag=Stage.Night, stage_start_time=0)
 
 
 def get_player_list(game_thread:str, start_day_post_id:int) -> list:
@@ -247,6 +252,48 @@ def get_last_voters_from(game_thread:str, bot_id:str, player:str) -> tuple:
 
     return last_vhistory_id
 
+#TODO: refactor candidate
+def get_last_shot_by(game_thread:str, bot_id:str, player:str) -> tuple:
+    """Parse the bot messages in the game thread to get the post id of the 
+    last pushed shot for a given player
+
+    Args:
+        game_thread (str): The game thread.
+        bot_id (str): Bot name.
+        player (str): The player whose vote history was pushed.
+
+    Returns:
+        int: The post id of the last voter history pushed for the given player.
+    """
+    last_shot_fired = 1
+
+    bot_posts         = f'{game_thread}?u={bot_id}'
+    bot_posts         = requests.get(bot_posts).text
+  
+    # Get total gm pages
+    bot_pages = get_page_count_from_page(bot_posts)
+
+    # We'll start looping from the last page to the previous one
+    for pagenum in range(bot_pages, 0, -1):
+
+        request      = f'{game_thread}?u={bot_id}&pagina={pagenum}'
+        request      = requests.get(request).text
+        current_page = BeautifulSoup(request, 'html.parser')
+
+        #TODO: log these iterations?
+        posts        = current_page.find_all('div', attrs={'data-num':True, 'data-autor':True})
+          
+        for post in reversed(posts): # from more recent to older posts
+
+            headers = post.find_all('h2') #get all GM h2 headers
+
+            for pcount in headers:   
+                shot_post = re.findall(f'^¡{player} tiene un arma!$', pcount.text)
+                if shot_post:
+                    last_shot_fired = int(post['data-num'])
+                    return last_shot_fired
+
+    return last_shot_fired
 
 def get_last_post(game_thread:str) -> int:
     """Parse the game thread messages to get the post id of the 
@@ -307,7 +354,7 @@ def get_actions_from_page(game_thread:str, page_to_scan:int, start_from_post:int
 
             for command in post_commands:
 
-                command = command.text.lower()
+                command = unicodedata.normalize("NFKC", command.text.lower())
 
                 Action  = GameAction(post_id=post_id,
                                      post_time=post_time,

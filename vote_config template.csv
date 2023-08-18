@@ -1,2 +1,2 @@
-﻿player,can_be_voted,allowed_votes,mod_to_lynch
-no_lynch,0,0,0
+﻿player,can_be_voted,allowed_votes,mod_to_lynch,is_mayor
+no_lynch,0,0,0,0

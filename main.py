@@ -1,10 +1,11 @@
-from datetime import date
+import datetime
 import logging
 import os.path
 import time
 import sys
 
 import pandas as pd
+import ntplib
 
 import config
 import user
@@ -56,28 +57,37 @@ def run(update_tick: int):
 
     ## Attempt to recover the last bot cycle just in case of an unexpected
     ## crash. Needed for the vhistory to work correctly.
-    bot_cyles = get_last_bot_cycle()
+    bot_cycles = get_last_bot_cycle()
+
+    ## check if this is the first bot activation. Don't trust cycles
+    if bot_cycles == 0:
+        announce_bot_activation()
 
     while(True):
 
 
         update_tick     = settings.update_time
 
-        game_status     = tr.get_game_phase(game_thread=settings.game_thread,
-                                            game_master=settings.game_master)
-       
-        if game_status[0] == stages.Stage.Day:
+        game_status     = tr.get_game_phase(game_thread=settings.game_thread, game_master=settings.game_master)
 
-            current_day_start_post = game_status[1]
+        if game_status.game_stage == stages.Stage.Day:
+
+            current_day_start_post = game_status.stage_start_post
+
+            ## Set the duration of the day phase
+            game_status.set_stage_duration(stage_hours = settings.day_duration)
+            ## Set the stage start time
+            game_status.set_stage_start_hour(stage_start=settings.stage_start_time)
+            
             player_list    = tr.get_player_list(game_thread=settings.game_thread,
                                         start_day_post_id=current_day_start_post
                                         )
-            
-            Players = pl.Players(player_list)
+
+            Players = pl.Players(player_list, bot_cycles)
 
             VoteCount              = vote_count.VoteCount(staff=staff,
                                                           day_start_post=current_day_start_post,
-                                                          bot_cyle=bot_cyles,
+                                                          bot_cycle=bot_cycles,
                                                           n_players=len(Players.players)
                                                           )
 
@@ -95,7 +105,7 @@ def run(update_tick: int):
             if not majority_reached:
 
                 last_thread_post  = tr.get_last_post(game_thread=settings.game_thread)
-                
+
                 logging.info(f'Starting vote count. Last vote count: {last_votecount_id}. Last reply: {last_thread_post}')
 
                 start_page = tr.get_page_number_from_post(current_day_start_post)
@@ -118,15 +128,43 @@ def run(update_tick: int):
                     vcount=VoteCount,
                     Players=Players,
                     last_count=last_votecount_id,
-                    day_start = current_day_start_post
+                    day_start = current_day_start_post,
+                    eod_time=game_status.get_end_of_stage()
                     )
+
+                ## Check If there is still time left to play. Otherwise, start the EoD
+                if game_status.is_end_of_stage(current_time = get_current_ntp_time()) and not majority_reached:
+                    
+                    last_valid_action = [action for action in action_queue if action.post_time < game_status.get_end_of_stage()].pop()
+                    majority_reached = True ## This will stop the bot in the next iteration
+                    logging.info("EoD detected. Pushing last valid votecount and preparing flip routine")
+
+                    end_of_day_victim = VoteCount.get_current_lynch_candidate()
+                    lynch_is_revealed = settings.reveal_eod_lynch
+
+                    if end_of_day_victim is None or end_of_day_victim == "no_lynch" or not lynch_is_revealed:
+                        role_to_reveal = None
+                    else:
+                        role_to_reveal = f"{Players.get_player_role(end_of_day_victim)} - {Players.get_player_team(end_of_day_victim)}"
+
+                    User = user.User(config=settings)
+                    User.push_lynch(
+                        last_votecount=VoteCount._vote_table,
+                        victim=end_of_day_victim,
+                        post_id=last_valid_action.id,
+                        reveal=role_to_reveal,
+                        is_eod=True
+                        )
+
+                    majority_reached = True
 
                 ## get votes casted since last update
                 votes_since_update = len(VoteCount._vote_table[VoteCount._vote_table['post_id'] > last_votecount_id].index)
 
                 should_update =  update_thread_vote_count(last_count=last_votecount_id,
                                                           last_post=last_thread_post,
-                                                          votes_since_update=votes_since_update)     
+                                                          votes_since_update=votes_since_update
+                                                          )     
                 
                 if should_update:
                     logging.info('Pushing a new votecount')
@@ -144,13 +182,13 @@ def run(update_tick: int):
             # Save the vote history for the next iteration
             VoteCount.save_vote_history()
 
-        elif game_status[0]  == stages.Stage.Night:
-
+        elif game_status.game_stage  == stages.Stage.Night:
+            game_status.set_stage_duration(stage_hours = settings.night_duration)
             logging.info('Night phase detected. Skipping...')
             print('We are on night phase!')
 
         #TODO: Exit routine here
-        elif game_status[0] == stages.Stage.End:
+        elif game_status.game_stage == stages.Stage.End:
             
             print('Game ended!')
             logging.info(f'Game ended. Exiting now')
@@ -161,13 +199,13 @@ def run(update_tick: int):
 
         print(f'Sleeping for {update_tick} seconds.')
 
-        bot_cyles += 1
+        bot_cycles += 1
         time.sleep(update_tick)
 
 
 #TODO: Handle actual permissions without a giant if/else
 #TODO: This func. is prime candidate for refactoring
-def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.Players, last_count:int, day_start:int):
+def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.Players, last_count:int, day_start:int, eod_time:int):
     '''
     Parameters:  \n
     queue: A list of game actions.\n
@@ -178,6 +216,11 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
     allowed_actors = Players.players + staff
 
     for game_action in queue:
+
+        ## Ignore actions out of EoD except those coming from the staff
+        if game_action.post_time >= eod_time and game_action.author not in staff:
+            continue
+
         if game_action.author in allowed_actors:
 
             if game_action.type == actions.Action.vote and (Players.player_exists(game_action.victim) or game_action.victim == "no_lynch"):
@@ -191,7 +234,10 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
 
                     User.push_lynch(last_votecount=vcount._vote_table,
                                     victim=game_action.victim,
-                                    post_id=game_action.id)
+                                    post_id=game_action.id,
+                                    reveal=f"{Players.get_player_role(game_action.victim)} - {Players.get_player_team(game_action.victim)}"
+                    )
+                    break
 
             elif game_action.type == actions.Action.unvote:
                 vcount.unvote_player(action=game_action)
@@ -270,9 +316,50 @@ def resolve_action_queue(queue: list, vcount: vote_count.VoteCount, Players: pl.
                             vcount.freeze_player_votes(player)
                     else:
                         vcount.freeze_player_votes(game_action.victim)
+            
+            elif game_action.type == actions.Action.reveal:
+                if game_action.author == vcount.mayor: ## mayor?
+                    if vcount.vote_rights.loc[game_action.author, "allowed_votes"] < 3: ## nope, not revealed
+                        vcount.update_vote_limits(player=game_action.author, new_limit=3)
+                        announce_mayor(new_mayor=vcount.get_real_names()[game_action.author])
 
 
-          
+            elif game_action.type == actions.Action.revive and game_action.author in staff:
+                if vcount.player_exists(game_action.victim.lower()): ## make sure this guy actually played and has rights
+                    Players.revive_player(game_action.victim)
+                else:
+                    logging.warning(f"Attempting to revive invalid player {game_action.victim}")
+
+            elif game_action.type == actions.Action.shoot:
+                if Players.player_exists(game_action.victim) and game_action.victim not in staff:
+                    was_valid_shot, is_dead_victim = Players.shoot_player(game_action)
+                    if was_valid_shot:
+                        if is_dead_victim:
+                            vcount.remove_player(game_action.victim)
+                        
+
+                        attacker_real_name = vcount.get_real_names()[game_action.author]
+                        victim_real_name = vcount.get_real_names()[game_action.victim]
+
+                        ## check if the bot already announced this
+                        last_shot_fired = tr.get_last_shot_by(
+                            game_thread=settings.game_thread,
+                            bot_id=settings.mediavida_user,
+                            player=attacker_real_name
+                            )
+
+                        if game_action.id > last_shot_fired:
+                            ## TODO: refactor when players are actual objects 
+                            User.queue_shooting(
+                                attacker=attacker_real_name,
+                                victim=victim_real_name,
+                                is_dead=is_dead_victim,
+                                reveal=f"{Players.get_player_role(game_action.victim)} - {Players.get_player_team(game_action.victim)}"
+                                )
+                else:
+                    logging.info(f"Invalid victim:{game_action.victim} at {game_action.id}")
+            
+     
     ## Finally, push the queue If needed
     User.push_queue()
                 
@@ -321,9 +408,25 @@ def push_vote_count(vote_table: pd.DataFrame, alive_players: list, last_parsed_p
 
     del User
 
+def announce_mayor(new_mayor: str):
+    """Push a new mayor announcement to the bot as a priority message.
+
+    Args:
+        new_mayor (str): Mayor name
+    """
+    User = user.User(config=settings)
+    User.push_new_mayor(new_mayor=new_mayor)
+    del User
+
+
+def announce_bot_activation():
+    """ Announce bot activation to the thread
+    """
+    User = user.User(config=settings)
+    User.push_welcome_message()
+    del User
 
 def get_last_bot_cycle() -> int:
-
     try:
         previous_vote_history = pd.read_csv('vote_history.csv', sep=',')
         last_cycle  = previous_vote_history['bot_cycle'].tail(1).values[0]
@@ -331,6 +434,16 @@ def get_last_bot_cycle() -> int:
         return cur_cycle
     except:
         return 0
+
+def get_current_ntp_time() -> int:
+    try:
+        ntp_client = ntplib.NTPClient()
+        response = ntp_client.request("pool.ntp.org")
+        current_time = response.tx_time
+    except:
+        current_time = datetime.datetime.now().timestamp()
+    
+    return current_time
 
 if __name__ == "__main__":
 	main()

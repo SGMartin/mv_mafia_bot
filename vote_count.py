@@ -7,7 +7,7 @@ import modules.game_actions as gm
 
 class  VoteCount:
 
-    def __init__(self, staff:list, day_start_post:int, bot_cyle:int, n_players: int):
+    def __init__(self, staff:list, day_start_post:int, bot_cycle:int, n_players: int):
 
         # Initialize empty vote table
         self._vote_table = pd.DataFrame(columns=["player",
@@ -32,10 +32,18 @@ class  VoteCount:
         # use lowercase player names as keys, player column as true names
         self.vote_rights.index = self.vote_rights['player'].str.lower()
 
+        # get the major (if any)
+        self.vote_rights["is_mayor"] = self.vote_rights["is_mayor"].astype(bool)
+
+        if self.vote_rights.loc[:, "is_mayor"].any():
+            self.mayor = self.vote_rights.loc[self.vote_rights["is_mayor"], :].index[0]
+        else:
+            self.mayor = None
+
         self.staff = staff
 
         self.lynched_player = ''
-        self.bot_cycle      = bot_cyle
+        self.bot_cycle      = bot_cycle
 
         # Frozen vote players
         self.frozen_players = list() 
@@ -43,6 +51,7 @@ class  VoteCount:
         self.locked_unvotes = False
 
         self.current_majority = self.get_vote_majority(n_players = n_players)
+        self.day_start_post = day_start_post
         
 
     def player_exists(self, player:str) -> bool:
@@ -343,9 +352,9 @@ class  VoteCount:
             self._entries_to_drop = self._vote_table[self._votes_by_player | self._voted_by_player].index
             self._vote_table.drop(self._entries_to_drop, axis=0, inplace=True)
 
-            logging.info(f'Modkilled:{player_to_remove}')
+            logging.info(f'Remove:{player_to_remove}')
         else:
-            logging.warning(f'Attempting to modkill invalid player {player_to_remove}')
+            logging.warning(f'Attempting to remove invalid player from the vcount {player_to_remove}')
 
 
     def freeze_player_votes(self, frozen_player:str):
@@ -375,6 +384,50 @@ class  VoteCount:
         if not self.locked_unvotes:
             self.locked_unvotes = True
             logging.info('The vote count has been locked')
+
+    def update_vote_limits(self, player:str, new_limit:int):
+        """Change the max. amount of votes for a given player
+
+        Args:
+            player (str): The player whose vote limit will be updated
+            new_limit (int): The new limit. If lower than 0, it will be set to 0
+        """
+        if self.player_exists(player):
+            self._new_limit = new_limit if new_limit >= 0 else 0
+            self._old_limit = self.vote_rights.loc[player, "allowed_votes"]
+
+            if self._old_limit != self._new_limit:
+                self.vote_rights.loc[player, 'allowed_votes'] = self._new_limit
+                self.vote_rights.to_csv("vote_config.csv", sep=",", index=False, header=True)
+            else:
+                logging.info(f"Ignoring vote rights update for player {player}")
+        else:
+            logging.warning(f"Attempting to update vote limit for unknown id: {player}.")
+
+    def get_current_lynch_candidate(self) -> str:
+        """Returns the player with the most votes at the given time. If there are no votes, it will default
+        to no_lynch or None if no_lynch is not allowed.
+
+        Returns:
+            str: Player to lynch
+        """
+        
+        self._most_voted = self._vote_table["public_name"].value_counts().sort_values(ascending=False)
+
+        if len(self._most_voted) == 0:
+            # Is no lynch allowed?
+            self._is_no_lynch_allowed = bool(self.vote_rights.loc["no_lynch", "can_be_voted"])
+
+            if self._is_no_lynch_allowed:
+                return "no_lynch"
+            else:
+                return None
+        else:
+            ## There is at least one tie. Do not RNG, default to none
+            if self._most_voted.iloc[0] == self._most_voted.iloc[1]:
+                return None 
+            else:
+                return self._most_voted.index[0]
 
 
     #TODO: Awful function, fix it
@@ -422,15 +475,26 @@ class  VoteCount:
         logging.info(f'{player} unvoted {victim}.')
     
     def _set_unvote_to_history(self, player:str, victim:str, unvote_post_id):
-        if victim == "none":
-            self._unvote = self._vote_history.loc[(self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0) & (self._vote_history["post_id"] < unvote_post_id)]
-        else:
-            self._unvote = self._vote_history.loc[(self._vote_history["player"] == victim) & (self._vote_history["voted_by"] == player) & (self._vote_history["unvoted_at"] == 0) & (self._vote_history["post_id"] < unvote_post_id)]
-            
+
+        self._unvote = self._vote_history.loc[
+            (self._vote_history["voted_by"] == player) & 
+            (self._vote_history["unvoted_at"] == 0) & 
+            (self._vote_history["post_id"] <= unvote_post_id) &
+            (self._vote_history["post_id"] >= self.day_start_post)
+            ]
+        
+        if victim != "none":
+            self._unvote = self._unvote.loc["player" == victim]
+        
+        self._sorted_unvotes = self._unvote.sort_values("bot_cycle")
+
         ## If self._unvote is empty, then we have nothing to update
-        if len(self._unvote) > 0:
-            self._vote_history.loc[self._unvote.index[0], "unvoted_at"] = unvote_post_id
-            logging.info(f"Add unvote to history at {self._unvote} for {unvote_post_id}")
+        ## If more than one result, it's a multi vote in the same post
+        if len(self._sorted_unvotes) == 0:
+            return
+        else:
+            self._vote_history.loc[self._sorted_unvotes.index[0], "unvoted_at"] = unvote_post_id
+            logging.info(f"Add unvote to history at {unvote_post_id} for {player} unvoting {victim}")
 
     def _update_vote_history(self):
         """Attempt to update the vote history with the last vote from the vote table.
@@ -489,3 +553,4 @@ class  VoteCount:
         #TODO: Find  a better way to do this. 
         logging.info(f'Updated vote_rights.csv with {player}')
         self.vote_rights.to_csv('vote_config.csv', sep=',', index=False, header=True)
+
